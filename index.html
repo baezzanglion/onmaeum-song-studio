@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>온마음 · 이야기 노래 스튜디오</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Gowun+Batang:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root{
+    --paper:#FAF4E8;        /* 한지 */
+    --paper-deep:#F2E8D5;
+    --ink:#2B2620;          /* 먹 */
+    --ink-soft:#6B6152;
+    --sea:#1E6E68;          /* 동해 청록 */
+    --sea-deep:#0F4844;
+    --persimmon:#C96A3B;    /* 감빛 (녹음/강조) */
+    --persimmon-deep:#A84F26;
+    --line:#D9CBB2;
+    --card:#FFFDF8;
+    --ok:#2E7D4F;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    font-family:'Gowun Batang',serif;
+    background:var(--paper);
+    color:var(--ink);
+    background-image:radial-gradient(circle at 20% 10%, rgba(201,106,59,.05), transparent 40%),
+                     radial-gradient(circle at 85% 90%, rgba(30,110,104,.06), transparent 45%);
+    min-height:100%;
+  }
+  .wrap{max-width:520px;margin:0 auto;padding:20px 18px 90px}
+
+  /* ---------- header ---------- */
+  header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px}
+  .brand{font-family:'Gaegu',cursive;font-weight:700;font-size:1.45rem;color:var(--sea-deep);letter-spacing:.02em}
+  .brand small{font-size:.85rem;color:var(--persimmon);margin-left:6px}
+  .gear{border:none;background:none;font-size:1.15rem;cursor:pointer;color:var(--ink-soft);padding:6px}
+  .sub{font-size:.8rem;color:var(--ink-soft);margin-bottom:18px;border-bottom:1px solid var(--line);padding-bottom:14px}
+
+  /* ---------- steps ---------- */
+  .steps{display:flex;gap:6px;margin-bottom:18px;font-family:'Gaegu',cursive;font-size:.95rem}
+  .step{flex:1;text-align:center;padding:7px 4px;border-radius:20px;border:1.5px dashed var(--line);color:var(--ink-soft);transition:.25s}
+  .step.on{border:1.5px solid var(--sea);background:var(--sea);color:#fff}
+  .step.done{border:1.5px solid var(--sea);color:var(--sea)}
+
+  .panel{display:none}
+  .panel.show{display:block;animation:fade .3s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  /* ---------- form ---------- */
+  label{display:block;font-size:.85rem;color:var(--ink-soft);margin:14px 0 6px;font-weight:700}
+  input[type=text],textarea{
+    width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:12px;
+    background:var(--card);font-family:'Gowun Batang',serif;font-size:1.05rem;color:var(--ink);
+  }
+  input:focus,textarea:focus{outline:2px solid var(--sea);border-color:transparent}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+  .chip{
+    padding:8px 14px;border-radius:20px;border:1.5px solid var(--line);background:var(--card);
+    font-family:'Gaegu',cursive;font-size:1rem;cursor:pointer;color:var(--ink-soft);transition:.15s
+  }
+  .chip.sel{background:var(--persimmon);border-color:var(--persimmon);color:#fff}
+
+  .btn{
+    display:block;width:100%;padding:15px;border:none;border-radius:14px;margin-top:22px;
+    background:var(--sea);color:#fff;font-family:'Gaegu',cursive;font-size:1.25rem;font-weight:700;
+    cursor:pointer;transition:.15s;
+  }
+  .btn:active{transform:scale(.98)}
+  .btn.ghost{background:var(--card);color:var(--sea-deep);border:1.5px solid var(--sea)}
+  .btn.warm{background:var(--persimmon)}
+  .btn:disabled{opacity:.45;cursor:default}
+
+  /* ---------- recording : signature ---------- */
+  .rec-stage{text-align:center;padding-top:8px}
+  .rec-name{font-family:'Gaegu',cursive;font-size:1.35rem;color:var(--sea-deep);margin-bottom:2px}
+  .rec-hint{font-size:.8rem;color:var(--ink-soft)}
+  .guide{
+    margin:16px auto 20px;max-width:340px;background:var(--card);border:1.5px solid var(--line);
+    border-radius:14px;padding:13px 16px;font-size:.95rem;line-height:1.55;position:relative;
+  }
+  .guide b{color:var(--persimmon);font-family:'Gaegu',cursive;font-size:1.05rem;display:block;margin-bottom:2px}
+  .guide-nav{position:absolute;top:8px;right:10px;font-size:.7rem;color:var(--ink-soft)}
+
+  .rec-btn{
+    width:130px;height:130px;border-radius:50%;border:none;margin:6px auto;display:block;cursor:pointer;
+    background:radial-gradient(circle at 35% 30%, #E08554, var(--persimmon-deep));
+    color:#fff;font-family:'Gaegu',cursive;font-size:1.3rem;font-weight:700;
+    box-shadow:0 6px 22px rgba(201,106,59,.35);position:relative;transition:.2s;
+  }
+  .rec-btn.live{background:radial-gradient(circle at 35% 30%, #2A8F88, var(--sea-deep));box-shadow:0 0 0 0 rgba(30,110,104,.5);animation:pulse 1.6s infinite}
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(30,110,104,.45)}
+    70%{box-shadow:0 0 0 26px rgba(30,110,104,0)}
+    100%{box-shadow:0 0 0 0 rgba(30,110,104,0)}
+  }
+  .timer{font-family:'Gaegu',cursive;font-size:1.5rem;color:var(--sea-deep);margin-top:10px;letter-spacing:.08em}
+
+  /* 받아쓰기 종이 */
+  .dictation{
+    margin-top:18px;background:var(--card);border:1.5px solid var(--line);border-radius:14px;
+    min-height:150px;max-height:240px;overflow-y:auto;padding:16px 18px;text-align:left;
+    font-family:'Gaegu',cursive;font-size:1.2rem;line-height:2.05;color:var(--ink);
+    background-image:repeating-linear-gradient(transparent,transparent 39px,rgba(30,110,104,.14) 40px);
+  }
+  .dictation .interim{color:var(--sea);opacity:.65}
+  .dictation .placeholder{color:var(--ink-soft);opacity:.6;font-size:1.05rem}
+
+  .rec-tools{display:flex;gap:10px;margin-top:14px}
+  .rec-tools .btn{margin-top:0;font-size:1.05rem;padding:12px}
+
+  .notice{margin-top:14px;font-size:.8rem;color:var(--ink-soft);background:var(--paper-deep);border-radius:10px;padding:10px 13px;line-height:1.6;text-align:left}
+  .notice.err{color:#8C3B2A;background:#F6E4DC}
+
+  /* ---------- result card ---------- */
+  .song-card{
+    background:var(--card);border:1.5px solid var(--line);border-radius:16px;padding:20px 18px;margin-top:16px;
+    box-shadow:0 3px 14px rgba(43,38,32,.06);
+  }
+  .song-title{font-family:'Gaegu',cursive;font-size:1.45rem;color:var(--persimmon-deep);text-align:center}
+  .song-owner{text-align:center;font-size:.85rem;color:var(--ink-soft);margin:2px 0 14px}
+  .sec{margin-top:16px}
+  .sec h4{font-size:.8rem;color:var(--sea-deep);letter-spacing:.06em;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+  .copy{
+    border:1px solid var(--sea);background:none;color:var(--sea);border-radius:14px;padding:3px 12px;
+    font-family:'Gaegu',cursive;font-size:.9rem;cursor:pointer;
+  }
+  .copy.done{background:var(--ok);border-color:var(--ok);color:#fff}
+  .box{background:var(--paper);border-radius:10px;padding:12px 14px;font-size:.95rem;line-height:1.8;white-space:pre-wrap}
+  .box.lyrics{font-family:'Gaegu',cursive;font-size:1.12rem}
+  .box.mono{font-family:monospace;font-size:.83rem;line-height:1.6}
+  .suno-row{display:flex;gap:10px;margin-top:18px}
+  .suno-row .btn{margin-top:0;font-size:1.05rem;padding:12px}
+  .qr-area{text-align:center;margin-top:14px}
+  .qr-area .qrbox{display:inline-block;background:#fff;padding:10px;border-radius:10px;border:1.5px solid var(--line)}
+  .qr-cap{font-size:.75rem;color:var(--ink-soft);margin-top:6px}
+
+  /* ---------- list ---------- */
+  .list-item{
+    display:flex;justify-content:space-between;align-items:center;background:var(--card);
+    border:1.5px solid var(--line);border-radius:12px;padding:13px 16px;margin-top:10px;cursor:pointer;
+  }
+  .list-item b{font-family:'Gaegu',cursive;font-size:1.15rem;color:var(--sea-deep)}
+  .list-item span{font-size:.78rem;color:var(--ink-soft)}
+  .empty{color:var(--ink-soft);font-size:.9rem;text-align:center;padding:30px 0;line-height:1.8}
+
+  /* ---------- settings modal ---------- */
+  .modal-bg{position:fixed;inset:0;background:rgba(43,38,32,.45);display:none;align-items:flex-end;justify-content:center;z-index:50}
+  .modal-bg.show{display:flex}
+  .modal{background:var(--paper);border-radius:20px 20px 0 0;padding:24px 20px 34px;width:100%;max-width:520px}
+  .modal h3{font-family:'Gaegu',cursive;color:var(--sea-deep);margin-bottom:4px}
+  .modal p{font-size:.78rem;color:var(--ink-soft);line-height:1.6}
+
+  /* ---------- bottom nav ---------- */
+  nav{
+    position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1.5px solid var(--line);
+    display:flex;max-width:520px;margin:0 auto;z-index:40;
+  }
+  nav button{
+    flex:1;border:none;background:none;padding:13px 0 15px;font-family:'Gaegu',cursive;font-size:1.05rem;
+    color:var(--ink-soft);cursor:pointer;
+  }
+  nav button.on{color:var(--sea-deep);font-weight:700;border-top:3px solid var(--sea);margin-top:-1.5px}
+
+  .loading{display:flex;flex-direction:column;align-items:center;gap:14px;padding:40px 0;color:var(--ink-soft);font-size:.9rem}
+  .spin{
+    width:44px;height:44px;border-radius:50%;border:4px solid var(--line);border-top-color:var(--persimmon);
+    animation:rot 1s linear infinite;
+  }
+  @keyframes rot{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion: reduce){
+    .rec-btn.live{animation:none}
+    .spin{animation-duration:2s}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">온마음 <small>이야기 노래 스튜디오</small></div>
+    <button class="gear" id="gearBtn" aria-label="설정">⚙</button>
+  </header>
+  <div class="sub">어르신의 인생 이야기를 듣고, 세상에 하나뿐인 노래로 — 평해감리교회 · 동해관 사역</div>
+
+  <div class="steps" id="steps">
+    <div class="step on" data-s="0">① 어르신</div>
+    <div class="step" data-s="1">② 이야기 듣기</div>
+    <div class="step" data-s="2">③ 노래 만들기</div>
+  </div>
+
+  <!-- STEP 0 : 어르신 정보 -->
+  <section class="panel show" id="p0">
+    <label>어르신 성함</label>
+    <input type="text" id="elderName" placeholder="예) 김순자" autocomplete="off">
+    <label>동해관 / 모임 장소</label>
+    <input type="text" id="placeName" placeholder="예) 평해 1동해관" autocomplete="off">
+    <label>곡 분위기</label>
+    <div class="chips" id="moodChips">
+      <button class="chip sel" data-v="신나는 정통 트로트">신나는 트로트</button>
+      <button class="chip" data-v="잔잔하고 애틋한 트로트 발라드">잔잔한 트로트</button>
+      <button class="chip" data-v="따뜻한 가스펠 찬양 스타일">찬양 느낌</button>
+    </div>
+    <label>보컬</label>
+    <div class="chips" id="vocalChips">
+      <button class="chip sel" data-v="여성">여성 보컬</button>
+      <button class="chip" data-v="남성">남성 보컬</button>
+    </div>
+    <button class="btn" id="toRecord">이야기 들으러 가기 →</button>
+  </section>
+
+  <!-- STEP 1 : 녹음 -->
+  <section class="panel" id="p1">
+    <div class="rec-stage">
+      <div class="rec-name" id="recName">어르신</div>
+      <div class="rec-hint">마사지해 드리며 편안하게 여쭤보세요</div>
+
+      <div class="guide">
+        <span class="guide-nav" id="guideNav">1 / 6</span>
+        <b id="guideQ">"고향이 어디세요?"</b>
+        <span id="guideTip">고향 마을 이름이 가사의 첫 줄이 됩니다.</span>
+      </div>
+
+      <button class="rec-btn" id="recBtn">듣기<br>시작</button>
+      <div class="timer" id="timer">00:00</div>
+
+      <div class="dictation" id="dictation">
+        <span class="placeholder">어르신 말씀이 여기에 받아 적혀요…</span>
+      </div>
+
+      <div class="rec-tools">
+        <button class="btn ghost" id="dlAudio" disabled>녹음 저장</button>
+        <button class="btn warm" id="finishRec" disabled>이야기 다 들었어요 ✓</button>
+      </div>
+
+      <div class="notice" id="recNotice">
+        음성 인식이 안 되는 환경이면(마이크 차단 등) 아래에 <b>클로바노트 텍스트를 붙여넣어도</b> 됩니다.
+      </div>
+      <label>직접 입력 / 클로바노트 붙여넣기 (선택)</label>
+      <textarea id="manualText" rows="3" placeholder="예) 고향은 후포리고, 평생 물질하며 삼남매를 키웠어…"></textarea>
+    </div>
+  </section>
+
+  <!-- STEP 2 : 결과 -->
+  <section class="panel" id="p2">
+    <div id="genLoading" class="loading" style="display:none">
+      <div class="spin"></div>
+      <div id="genMsg">어르신 이야기를 노랫말로 옮기고 있어요…</div>
+    </div>
+    <div id="resultArea"></div>
+  </section>
+
+  <!-- 목록 -->
+  <section class="panel" id="pList">
+    <div id="listArea"><div class="empty">아직 만든 노래가 없어요.<br>어르신 이야기를 들으러 가볼까요?</div></div>
+  </section>
+</div>
+
+<nav>
+  <button class="on" id="navMake">노래 만들기</button>
+  <button id="navList">완성된 노래 <span id="cnt"></span></button>
+</nav>
+
+<!-- 설정 -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h3>설정 · Anthropic API 키</h3>
+    <p>Claude.ai 아티팩트 안에서는 키 없이 작동합니다. GitHub Pages / Vercel에 배포해 쓸 때만 본인 키를 등록하세요. 키는 이 브라우저에만 저장됩니다.</p>
+    <label>API Key</label>
+    <input type="text" id="apiKey" placeholder="sk-ant-...">
+    <div class="rec-tools">
+      <button class="btn ghost" id="clearKey">지우기</button>
+      <button class="btn" id="saveKey">저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------- 안전 저장소 (아티팩트에서는 메모리, 배포시 localStorage) ---------- */
+const mem = {};
+const store = {
+  get(k){ try { return localStorage.getItem(k) ?? mem[k] ?? null; } catch(e){ return mem[k] ?? null; } },
+  set(k,v){ mem[k]=v; try { localStorage.setItem(k,v); } catch(e){} },
+  del(k){ delete mem[k]; try { localStorage.removeItem(k); } catch(e){} }
+};
+
+/* ---------- 상태 ---------- */
+let state = { name:'', place:'', mood:'신나는 정통 트로트', vocal:'여성', transcript:'', songs:[] };
+try { const saved = store.get('onmaeum_songs'); if (saved) state.songs = JSON.parse(saved); } catch(e){}
+
+const $ = id => document.getElementById(id);
+const panels = ['p0','p1','p2'];
+
+function showStep(n){
+  panels.forEach((p,i)=>$(p).classList.toggle('show', i===n));
+  $('pList').classList.remove('show');
+  document.querySelectorAll('#steps .step').forEach((s,i)=>{
+    s.classList.toggle('on', i===n);
+    s.classList.toggle('done', i<n);
+  });
+  $('steps').style.display='flex';
+  $('navMake').classList.add('on'); $('navList').classList.remove('on');
+}
+function showList(){
+  panels.forEach(p=>$(p).classList.remove('show'));
+  $('pList').classList.add('show');
+  $('steps').style.display='none';
+  $('navMake').classList.remove('on'); $('navList').classList.add('on');
+  renderList();
+}
+$('navMake').onclick = ()=>showStep(0);
+$('navList').onclick = showList;
+
+/* ---------- 칩 선택 ---------- */
+function bindChips(boxId, key){
+  $(boxId).querySelectorAll('.chip').forEach(c=>{
+    c.onclick = ()=>{
+      $(boxId).querySelectorAll('.chip').forEach(x=>x.classList.remove('sel'));
+      c.classList.add('sel');
+      state[key] = c.dataset.v;
+    };
+  });
+}
+bindChips('moodChips','mood');
+bindChips('vocalChips','vocal');
+
+/* ---------- STEP 0 → 1 ---------- */
+$('toRecord').onclick = ()=>{
+  const n = $('elderName').value.trim();
+  if(!n){ $('elderName').focus(); return; }
+  state.name = n;
+  state.place = $('placeName').value.trim();
+  $('recName').textContent = n + ' 어르신의 이야기';
+  showStep(1);
+};
+
+/* ---------- 질문 가이드 ---------- */
+const guides = [
+  ['"고향이 어디세요?"','고향 마을 이름이 가사의 첫 줄이 됩니다.'],
+  ['"젊으실 때는 무슨 일 하셨어요?"','평생의 일(농사, 물질, 장사…)이 노래의 뼈대가 돼요.'],
+  ['"자녀분들은 몇이나 두셨어요?"','자식 자랑은 최고의 후렴 재료입니다.'],
+  ['"살면서 제일 기뻤던 날은 언제세요?"','그날의 장면을 구체적으로 여쭤보세요.'],
+  ['"제일 고생스러웠던 시절은요?"','고생담 뒤에 위로의 가사가 붙습니다.'],
+  ['"요즘 제일 감사한 건 뭐예요?"','감사 제목이 마지막 절의 복음 메시지와 이어져요.'],
+];
+let gIdx = 0, gTimer = null;
+function rotateGuide(){
+  gIdx = (gIdx+1) % guides.length;
+  $('guideQ').textContent = guides[gIdx][0];
+  $('guideTip').textContent = guides[gIdx][1];
+  $('guideNav').textContent = (gIdx+1)+' / '+guides.length;
+}
+
+/* ---------- 녹음 + 음성인식 ---------- */
+let recognizing = false, recog = null, mediaRec = null, chunks = [], audioURL = null;
+let finalText = '', secs = 0, tTimer = null;
+
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+function renderDictation(interim){
+  const el = $('dictation');
+  if(!finalText && !interim){
+    el.innerHTML = '<span class="placeholder">어르신 말씀이 여기에 받아 적혀요…</span>';
+    return;
+  }
+  el.innerHTML = escapeHtml(finalText) + (interim ? '<span class="interim">'+escapeHtml(interim)+'</span>' : '');
+  el.scrollTop = el.scrollHeight;
+}
+function escapeHtml(s){ return s.replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+function startRecognition(){
+  if(!SR) return;
+  recog = new SR();
+  recog.lang = 'ko-KR';
+  recog.continuous = true;
+  recog.interimResults = true;
+  recog.onresult = e=>{
+    let interim = '';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const t = e.results[i][0].transcript;
+      if(e.results[i].isFinal) finalText += t + ' ';
+      else interim += t;
+    }
+    renderDictation(interim);
+  };
+  recog.onend = ()=>{ if(recognizing){ try{ recog.start(); }catch(e){} } }; // 자동 재시작
+  recog.onerror = ev=>{
+    if(ev.error==='not-allowed' || ev.error==='service-not-allowed'){
+      recNoticeErr('마이크 사용이 차단된 환경이에요. 아래 입력창에 클로바노트 텍스트를 붙여넣어 주세요. (배포된 페이지에서는 정상 작동합니다)');
+    }
+  };
+  try{ recog.start(); }catch(e){}
+}
+
+async function startAudioBackup(){
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+    mediaRec = new MediaRecorder(stream);
+    chunks = [];
+    mediaRec.ondataavailable = e=>{ if(e.data.size) chunks.push(e.data); };
+    mediaRec.onstop = ()=>{
+      const blob = new Blob(chunks,{type:'audio/webm'});
+      audioURL = URL.createObjectURL(blob);
+      $('dlAudio').disabled = false;
+      stream.getTracks().forEach(t=>t.stop());
+    };
+    mediaRec.start();
+  }catch(e){
+    recNoticeErr('마이크에 접근할 수 없어요. 배포된 HTTPS 페이지에서는 정상 작동합니다. 지금은 아래에 텍스트를 직접 입력해 주세요.');
+  }
+}
+
+function recNoticeErr(msg){
+  const n = $('recNotice');
+  n.classList.add('err');
+  n.innerHTML = msg;
+}
+
+$('recBtn').onclick = async ()=>{
+  if(!recognizing){
+    recognizing = true;
+    $('recBtn').classList.add('live');
+    $('recBtn').innerHTML = '듣는<br>중…';
+    $('finishRec').disabled = false;
+    secs = 0;
+    tTimer = setInterval(()=>{
+      secs++;
+      $('timer').textContent = String(Math.floor(secs/60)).padStart(2,'0')+':'+String(secs%60).padStart(2,'0');
+    },1000);
+    gTimer = setInterval(rotateGuide, 25000);
+    startRecognition();
+    startAudioBackup();
+  }else{
+    stopRec();
+  }
+};
+
+function stopRec(){
+  recognizing = false;
+  $('recBtn').classList.remove('live');
+  $('recBtn').innerHTML = '듣기<br>재개';
+  clearInterval(tTimer); clearInterval(gTimer);
+  if(recog){ try{ recog.stop(); }catch(e){} }
+  if(mediaRec && mediaRec.state!=='inactive'){ try{ mediaRec.stop(); }catch(e){} }
+}
+
+$('dlAudio').onclick = ()=>{
+  if(!audioURL) return;
+  const a = document.createElement('a');
+  a.href = audioURL;
+  a.download = (state.name||'어르신')+'_이야기.webm';
+  a.click();
+};
+
+/* ---------- STEP 1 → 2 : AI 생성 ---------- */
+$('finishRec').onclick = ()=>{
+  stopRec();
+  const manual = $('manualText').value.trim();
+  state.transcript = (finalText + ' ' + manual).trim();
+  if(state.transcript.length < 10){
+    recNoticeErr('이야기가 너무 짧아요. 조금 더 듣거나, 아래 입력창에 내용을 적어 주세요.');
+    return;
+  }
+  showStep(2);
+  generateSong();
+};
+
+const genMsgs = ['어르신 이야기를 노랫말로 옮기고 있어요…','후렴에 성함을 곱게 넣는 중…','트로트 가락을 고르는 중…'];
+let genTimer = null;
+
+async function generateSong(){
+  $('genLoading').style.display='flex';
+  $('resultArea').innerHTML='';
+  let mi = 0;
+  genTimer = setInterval(()=>{ mi=(mi+1)%genMsgs.length; $('genMsg').textContent=genMsgs[mi]; },3000);
+
+  const prompt = `당신은 한국 트로트 작사가이자 교회 선교팀의 동역자입니다.
+아래는 봉사자가 ${state.name} 어르신과 나눈 대화를 받아 적은 것입니다 (음성 인식이라 오타가 있을 수 있음).
+
+<대화록>
+${state.transcript}
+</대화록>
+
+어르신 정보: 성함 ${state.name}${state.place? ', 장소 '+state.place : ''}
+곡 분위기: ${state.mood}, ${state.vocal} 보컬
+
+이 어르신만을 위한 노래를 만들어 주세요. 규칙:
+1. 가사는 짧게 — [Verse 1](4줄) + [Chorus](4줄) + [Verse 2](4줄) + [Chorus] 구조. Suno가 인식하도록 [Verse 1], [Chorus] 등 영어 섹션 태그를 그대로 사용.
+2. 후렴에 반드시 "${state.name}" 성함이 자연스럽게 2번 이상 들어갈 것.
+3. 대화록의 구체적인 사실(고향, 평생의 일, 자녀, 기뻤던 순간)을 가사에 녹일 것. 대화록에 없는 사실을 지어내지 말 것.
+4. 마지막 절이나 후렴에 예수님의 사랑·위로가 은은하게 담기되, 설교조가 아닌 따뜻한 축복으로.
+5. style_prompt는 Suno에 넣을 영어 스타일 설명 (장르, 분위기, 악기, ${state.vocal==='여성'?'female':'male'} vocal, Korean trot 명시, 100자 이내).
+
+아래 JSON 형식으로만 응답하세요. 다른 텍스트, 마크다운 백틱 금지:
+{"title":"곡 제목(어르신 성함 포함)","summary":"어르신 인생 이야기 3문장 요약","lyrics":"가사 전체(줄바꿈 \\n)","style_prompt":"english style prompt"}`;
+
+  try{
+    const key = store.get('onmaeum_api_key');
+    const headers = {'Content-Type':'application/json'};
+    if(key){
+      headers['x-api-key'] = key;
+      headers['anthropic-version'] = '2023-06-01';
+      headers['anthropic-dangerous-direct-browser-access'] = 'true';
+    }
+    const res = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST', headers,
+      body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:1000, messages:[{role:'user',content:prompt}] })
+    });
+    const data = await res.json();
+    const text = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
+    const clean = text.replace(/```json|```/g,'').trim();
+    const song = JSON.parse(clean);
+    song.name = state.name; song.place = state.place;
+    song.mood = state.mood; song.vocal = state.vocal;
+    song.time = new Date().toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+    song.sunoUrl = '';
+    state.songs.unshift(song);
+    persistSongs();
+    renderResult(song, 0);
+  }catch(err){
+    $('resultArea').innerHTML = '<div class="notice err">노래 만들기에 실패했어요. 인터넷 연결을 확인하거나, 배포 환경이라면 ⚙에서 API 키를 확인해 주세요.<br><br>'+escapeHtml(String(err))+'</div>'
+      + '<button class="btn ghost" onclick="generateSong()">다시 시도</button>';
+  }finally{
+    clearInterval(genTimer);
+    $('genLoading').style.display='none';
+  }
+}
+
+function persistSongs(){
+  store.set('onmaeum_songs', JSON.stringify(state.songs));
+  $('cnt').textContent = state.songs.length ? '('+state.songs.length+')' : '';
+}
+
+/* ---------- 결과 카드 ---------- */
+function renderResult(song, idx){
+  const el = document.createElement('div');
+  el.innerHTML = `
+  <div class="song-card">
+    <div class="song-title">🎵 ${escapeHtml(song.title)}</div>
+    <div class="song-owner">${escapeHtml(song.name)} 어르신 · ${escapeHtml(song.place||'')} · ${song.time}</div>
+
+    <div class="sec"><h4>인생 이야기 요약</h4>
+      <div class="box">${escapeHtml(song.summary)}</div></div>
+
+    <div class="sec"><h4>가사 <button class="copy" data-c="lyrics">가사 복사</button></h4>
+      <div class="box lyrics">${escapeHtml(song.lyrics)}</div></div>
+
+    <div class="sec"><h4>Suno 스타일 프롬프트 <button class="copy" data-c="style_prompt">스타일 복사</button></h4>
+      <div class="box mono">${escapeHtml(song.style_prompt)}</div></div>
+
+    <div class="suno-row">
+      <a class="btn warm" style="text-decoration:none;text-align:center" href="https://suno.com/create" target="_blank" rel="noopener">Suno 열기 ↗</a>
+    </div>
+
+    <div class="sec"><h4>완성된 Suno 곡 링크 (포토카드 QR용)</h4>
+      <input type="text" class="suno-link" placeholder="https://suno.com/song/... 붙여넣기" value="${escapeHtml(song.sunoUrl||'')}">
+      <div class="qr-area"></div>
+    </div>
+  </div>
+  <button class="btn" id="nextElder">다음 어르신 이야기 듣기 →</button>`;
+
+  // 복사 버튼
+  el.querySelectorAll('.copy').forEach(b=>{
+    b.onclick = async ()=>{
+      try{
+        await navigator.clipboard.writeText(song[b.dataset.c]);
+        b.textContent='복사됨 ✓'; b.classList.add('done');
+        setTimeout(()=>{ b.textContent = b.dataset.c==='lyrics'?'가사 복사':'스타일 복사'; b.classList.remove('done'); },1800);
+      }catch(e){ alert('복사 실패 — 길게 눌러 직접 복사해 주세요.'); }
+    };
+  });
+  // Suno 링크 → QR
+  const linkInput = el.querySelector('.suno-link');
+  const qrArea = el.querySelector('.qr-area');
+  function drawQR(){
+    const v = linkInput.value.trim();
+    song.sunoUrl = v; persistSongs();
+    qrArea.innerHTML = '';
+    if(v && window.QRCode){
+      const box = document.createElement('div'); box.className='qrbox';
+      qrArea.appendChild(box);
+      new QRCode(box,{text:v,width:120,height:120,colorDark:'#0F4844'});
+      const cap = document.createElement('div'); cap.className='qr-cap';
+      cap.textContent='포토카드 뒷면에 인쇄할 QR — 스캔하면 어르신 노래가 나와요';
+      qrArea.appendChild(cap);
+    }
+  }
+  linkInput.addEventListener('change', drawQR);
+  drawQR();
+
+  const next = el.querySelector('#nextElder');
+  if(next) next.onclick = resetForNext;
+
+  $('resultArea').appendChild(el);
+}
+
+function resetForNext(){
+  finalText=''; audioURL=null; secs=0;
+  $('elderName').value=''; $('manualText').value='';
+  $('timer').textContent='00:00';
+  $('recBtn').innerHTML='듣기<br>시작';
+  $('dlAudio').disabled=true; $('finishRec').disabled=true;
+  renderDictation('');
+  showStep(0);
+  $('elderName').focus();
+}
+
+/* ---------- 목록 ---------- */
+function renderList(){
+  const area = $('listArea');
+  if(!state.songs.length){
+    area.innerHTML = '<div class="empty">아직 만든 노래가 없어요.<br>어르신 이야기를 들으러 가볼까요?</div>';
+    return;
+  }
+  area.innerHTML='';
+  state.songs.forEach((s,i)=>{
+    const d = document.createElement('div');
+    d.className='list-item';
+    d.innerHTML = `<div><b>${escapeHtml(s.name)}</b> · ${escapeHtml(s.title)}<br><span>${escapeHtml(s.place||'')} ${s.time} ${s.sunoUrl?'· 🎵곡 연결됨':''}</span></div><span>보기 ›</span>`;
+    d.onclick = ()=>{
+      panels.forEach(p=>$(p).classList.remove('show'));
+      $('pList').classList.remove('show');
+      $('p2').classList.add('show');
+      $('steps').style.display='flex';
+      $('resultArea').innerHTML='';
+      renderResult(s,i);
+    };
+    area.appendChild(d);
+  });
+}
+persistSongs();
+
+/* ---------- 설정 ---------- */
+$('gearBtn').onclick = ()=>{
+  $('apiKey').value = store.get('onmaeum_api_key')||'';
+  $('modalBg').classList.add('show');
+};
+$('modalBg').onclick = e=>{ if(e.target===$('modalBg')) $('modalBg').classList.remove('show'); };
+$('saveKey').onclick = ()=>{ store.set('onmaeum_api_key', $('apiKey').value.trim()); $('modalBg').classList.remove('show'); };
+$('clearKey').onclick = ()=>{ store.del('onmaeum_api_key'); $('apiKey').value=''; };
+</script>
+</body>
+</html>
