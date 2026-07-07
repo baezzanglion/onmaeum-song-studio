@@ -119,6 +119,13 @@
   .notice{margin-top:14px;font-size:.8rem;color:var(--ink-soft);background:var(--paper-deep);border-radius:10px;padding:10px 13px;line-height:1.6;text-align:left}
   .notice.err{color:#8C3B2A;background:#F6E4DC}
 
+  .inapp-banner{
+    display:none;background:#F6E4DC;border:1.5px solid var(--persimmon);border-radius:12px;
+    padding:14px 16px;margin-bottom:16px;font-size:.88rem;line-height:1.65;color:#8C3B2A;
+  }
+  .inapp-banner b{font-family:'Gaegu',cursive;font-size:1.05rem;display:block;margin-bottom:4px}
+  .inapp-banner .btn{margin-top:10px;padding:11px;font-size:1.05rem}
+
   /* ---------- result card ---------- */
   .song-card{
     background:var(--card);border:1.5px solid var(--line);border-radius:16px;padding:20px 18px;margin-top:16px;
@@ -188,6 +195,12 @@
     <button class="gear" id="gearBtn" aria-label="설정">⚙</button>
   </header>
   <div class="sub">어르신의 인생 이야기를 듣고, 세상에 하나뿐인 노래로 — 평해감리교회 · 동해관 사역</div>
+
+  <div class="inapp-banner" id="inappBanner">
+    <b>⚠ 카카오톡 안에서 열렸어요</b>
+    카톡 브라우저에서는 마이크 권한 창이 반복해서 떠요. 크롬(또는 사파리)으로 열면 받아쓰기가 안정적으로 작동합니다.
+    <button class="btn warm" id="openExternal">크롬으로 열기 →</button>
+  </div>
 
   <div class="steps" id="steps">
     <div class="step on" data-s="0">① 어르신</div>
@@ -300,6 +313,25 @@ try { const saved = store.get('onmaeum_songs'); if (saved) state.songs = JSON.pa
 
 const IS_MOBILE = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
+/* ---------- 인앱 브라우저 감지 (카톡 등) ---------- */
+const UA = navigator.userAgent;
+const IS_KAKAO = /KAKAOTALK/i.test(UA);
+const IS_INAPP = IS_KAKAO || /Instagram|FBAN|FBAV|Line\/|NAVER\(inapp/i.test(UA);
+if(IS_INAPP){
+  document.getElementById('inappBanner').style.display = 'block';
+  document.getElementById('openExternal').onclick = ()=>{
+    const url = location.href;
+    if(IS_KAKAO){
+      // 카톡 전용: 기본 브라우저로 열기
+      location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(url);
+    }else if(/Android/i.test(UA)){
+      location.href = 'intent://' + url.replace(/^https?:\/\//,'') + '#Intent;scheme=https;package=com.android.chrome;end';
+    }else{
+      alert('오른쪽 아래 메뉴(⋯ 또는 공유)에서 "Safari로 열기"를 눌러 주세요.');
+    }
+  };
+}
+
 const $ = id => document.getElementById(id);
 const panels = ['p0','p1','p2'];
 
@@ -370,17 +402,22 @@ $('guideCard').onclick = ()=>{
 
 /* ---------- 녹음 + 음성인식 ---------- */
 let recognizing = false, recog = null, mediaRec = null, chunks = [], audioURL = null;
-let finalText = '', secs = 0, tTimer = null;
+let committedText = '';   // 이전 인식 세션들에서 확정된 텍스트
+let sessionText = '';     // 현재 세션에서 확정된 텍스트
+let secs = 0, tTimer = null;
 
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 
+function fullFinalText(){ return (committedText + sessionText).trim(); }
+
 function renderDictation(interim){
   const el = $('dictation');
-  if(!finalText && !interim){
+  const fin = committedText + sessionText;
+  if(!fin && !interim){
     el.innerHTML = '<span class="placeholder">어르신 말씀이 여기에 받아 적혀요…</span>';
     return;
   }
-  el.innerHTML = escapeHtml(finalText) + (interim ? '<span class="interim">'+escapeHtml(interim)+'</span>' : '');
+  el.innerHTML = escapeHtml(fin) + (interim ? '<span class="interim">'+escapeHtml(interim)+'</span>' : '');
   el.scrollTop = el.scrollHeight;
 }
 function escapeHtml(s){ return s.replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
@@ -392,18 +429,29 @@ function startRecognition(){
   recog.continuous = true;
   recog.interimResults = true;
   recog.onresult = e=>{
-    let interim = '';
-    for(let i=e.resultIndex;i<e.results.length;i++){
+    // 안드로이드 크롬은 같은 결과를 재전송하는 경우가 있어,
+    // 누적하지 않고 현재 세션의 결과 목록 전체를 매번 처음부터 다시 조립한다 (중복 방지)
+    let fin = '', interim = '';
+    for(let i=0;i<e.results.length;i++){
       const t = e.results[i][0].transcript;
-      if(e.results[i].isFinal) finalText += t + ' ';
+      if(e.results[i].isFinal) fin += t + ' ';
       else interim += t;
     }
+    sessionText = fin;
     renderDictation(interim);
   };
-  recog.onend = ()=>{ if(recognizing){ try{ recog.start(); }catch(e){} } }; // 자동 재시작
+  recog.onend = ()=>{
+    // 세션이 끝나면 세션 텍스트를 확정 버퍼로 옮기고, 잠시 후 재시작
+    committedText += sessionText;
+    sessionText = '';
+    if(recognizing){
+      setTimeout(()=>{ if(recognizing){ try{ recog.start(); }catch(e){} } }, 300);
+    }
+  };
   recog.onerror = ev=>{
     if(ev.error==='not-allowed' || ev.error==='service-not-allowed'){
-      recNoticeErr('마이크 사용이 차단된 환경이에요. 아래 입력창에 클로바노트 텍스트를 붙여넣어 주세요. (배포된 페이지에서는 정상 작동합니다)');
+      recognizing = false;
+      recNoticeErr('마이크 사용이 차단됐어요. 카카오톡 안에서 열었다면 크롬으로 열어 주세요. 또는 아래 입력창에 이야기를 직접 적어 주세요.');
     }
   };
   try{ recog.start(); }catch(e){}
@@ -479,7 +527,7 @@ $('dlAudio').onclick = ()=>{
 $('finishRec').onclick = ()=>{
   stopRec();
   const manual = $('manualText').value.trim();
-  state.transcript = (finalText + ' ' + manual).trim();
+  state.transcript = (fullFinalText() + ' ' + manual).trim();
   if(state.transcript.length < 10){
     recNoticeErr('이야기가 너무 짧아요. 조금 더 듣거나, 아래 입력창에 내용을 적어 주세요.');
     return;
@@ -615,7 +663,7 @@ function renderResult(song, idx){
 }
 
 function resetForNext(){
-  finalText=''; audioURL=null; secs=0;
+  committedText=''; sessionText=''; audioURL=null; secs=0;
   $('elderName').value=''; $('manualText').value='';
   $('timer').textContent='00:00';
   $('recBtn').innerHTML='듣기<br>시작';
