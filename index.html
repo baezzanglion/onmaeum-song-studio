@@ -267,10 +267,10 @@
 <!-- 설정 -->
 <div class="modal-bg" id="modalBg">
   <div class="modal">
-    <h3>설정 · Anthropic API 키</h3>
-    <p>Claude.ai 아티팩트 안에서는 키 없이 작동합니다. GitHub Pages / Vercel에 배포해 쓸 때만 본인 키를 등록하세요. 키는 이 브라우저에만 저장됩니다.</p>
-    <label>API Key</label>
-    <input type="text" id="apiKey" placeholder="sk-ant-...">
+    <h3>설정 · 팀 코드</h3>
+    <p>선교팀 리더에게 받은 팀 코드를 입력하세요. 한 번만 입력하면 이 기기에 저장됩니다. (API 키는 서버에 안전하게 보관되어 있어 입력할 필요가 없어요.)</p>
+    <label>팀 코드</label>
+    <input type="text" id="apiKey" placeholder="예) pyeonghae2026">
     <div class="rec-tools">
       <button class="btn ghost" id="clearKey">지우기</button>
       <button class="btn" id="saveKey">저장</button>
@@ -498,18 +498,15 @@ ${state.transcript}
 {"title":"곡 제목(어르신 성함 포함)","summary":"어르신 인생 이야기 3문장 요약","lyrics":"가사 전체(줄바꿈 \\n)","style_prompt":"english style prompt"}`;
 
   try{
-    const key = store.get('onmaeum_api_key');
     const headers = {'Content-Type':'application/json'};
-    if(key){
-      headers['x-api-key'] = key;
-      headers['anthropic-version'] = '2023-06-01';
-      headers['anthropic-dangerous-direct-browser-access'] = 'true';
-    }
-    const res = await fetch('https://api.anthropic.com/v1/messages',{
+    const code = store.get('onmaeum_team_code');
+    if(code) headers['x-team-code'] = code;
+    const res = await fetch('/api/generate',{
       method:'POST', headers,
-      body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:1000, messages:[{role:'user',content:prompt}] })
+      body: JSON.stringify({ messages:[{role:'user',content:prompt}] })
     });
     const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'HTTP '+res.status);
     const text = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
     const clean = text.replace(/```json|```/g,'').trim();
     const song = JSON.parse(clean);
@@ -521,7 +518,7 @@ ${state.transcript}
     persistSongs();
     renderResult(song, 0);
   }catch(err){
-    $('resultArea').innerHTML = '<div class="notice err">노래 만들기에 실패했어요. 인터넷 연결을 확인하거나, 배포 환경이라면 ⚙에서 API 키를 확인해 주세요.<br><br>'+escapeHtml(String(err))+'</div>'
+    $('resultArea').innerHTML = '<div class="notice err">노래 만들기에 실패했어요. 인터넷 연결을 확인하고, ⚙에서 팀 코드가 맞는지 확인해 주세요.<br><br>'+escapeHtml(String(err))+'</div>'
       + '<button class="btn ghost" onclick="generateSong()">다시 시도</button>';
   }finally{
     clearInterval(genTimer);
@@ -635,12 +632,12 @@ persistSongs();
 
 /* ---------- 설정 ---------- */
 $('gearBtn').onclick = ()=>{
-  $('apiKey').value = store.get('onmaeum_api_key')||'';
+  $('apiKey').value = store.get('onmaeum_team_code')||'';
   $('modalBg').classList.add('show');
 };
 $('modalBg').onclick = e=>{ if(e.target===$('modalBg')) $('modalBg').classList.remove('show'); };
-$('saveKey').onclick = ()=>{ store.set('onmaeum_api_key', $('apiKey').value.trim()); $('modalBg').classList.remove('show'); };
-$('clearKey').onclick = ()=>{ store.del('onmaeum_api_key'); $('apiKey').value=''; };
+$('saveKey').onclick = ()=>{ store.set('onmaeum_team_code', $('apiKey').value.trim()); $('modalBg').classList.remove('show'); };
+$('clearKey').onclick = ()=>{ store.del('onmaeum_team_code'); $('apiKey').value=''; };
 </script>
 </body>
 </html>
