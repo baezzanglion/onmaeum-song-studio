@@ -81,10 +81,13 @@
   .rec-hint{font-size:.8rem;color:var(--ink-soft)}
   .guide{
     margin:16px auto 20px;max-width:340px;background:var(--card);border:1.5px solid var(--line);
-    border-radius:14px;padding:13px 16px;font-size:.95rem;line-height:1.55;position:relative;
+    border-radius:14px;padding:13px 16px 24px;font-size:.95rem;line-height:1.55;position:relative;
+    cursor:pointer;user-select:none;-webkit-user-select:none;
   }
+  .guide:active{background:var(--paper-deep)}
   .guide b{color:var(--persimmon);font-family:'Gaegu',cursive;font-size:1.05rem;display:block;margin-bottom:2px}
   .guide-nav{position:absolute;top:8px;right:10px;font-size:.7rem;color:var(--ink-soft)}
+  .guide-next{position:absolute;bottom:6px;right:12px;font-family:'Gaegu',cursive;font-size:.85rem;color:var(--sea)}
 
   .rec-btn{
     width:130px;height:130px;border-radius:50%;border:none;margin:6px auto;display:block;cursor:pointer;
@@ -200,14 +203,17 @@
     <input type="text" id="placeName" placeholder="예) 평해 1동해관" autocomplete="off">
     <label>곡 분위기</label>
     <div class="chips" id="moodChips">
-      <button class="chip sel" data-v="신나는 정통 트로트">신나는 트로트</button>
-      <button class="chip" data-v="잔잔하고 애틋한 트로트 발라드">잔잔한 트로트</button>
-      <button class="chip" data-v="따뜻한 가스펠 찬양 스타일">찬양 느낌</button>
+      <button class="chip sel" data-v="따뜻한 가스펠 찬양 스타일">찬양</button>
+      <button class="chip" data-v="신나는 정통 트로트">신나는 트로트</button>
+      <button class="chip" data-v="잔잔하고 애틋한 트로트">잔잔한 트로트</button>
+      <button class="chip" data-v="서정적이고 감동적인 발라드">발라드</button>
     </div>
     <label>보컬</label>
     <div class="chips" id="vocalChips">
-      <button class="chip sel" data-v="여성">여성 보컬</button>
-      <button class="chip" data-v="남성">남성 보컬</button>
+      <button class="chip sel" data-v="여성" data-en="warm female vocal">여성 보컬</button>
+      <button class="chip" data-v="남성" data-en="rich male vocal">남성 보컬</button>
+      <button class="chip" data-v="아이" data-en="cute innocent child vocal">아이 목소리</button>
+      <button class="chip" data-v="가족" data-en="heartwarming family duet, mixed male and female vocals">가족</button>
     </div>
     <button class="btn" id="toRecord">이야기 들으러 가기 →</button>
   </section>
@@ -218,10 +224,11 @@
       <div class="rec-name" id="recName">어르신</div>
       <div class="rec-hint">마사지해 드리며 편안하게 여쭤보세요</div>
 
-      <div class="guide">
+      <div class="guide" id="guideCard">
         <span class="guide-nav" id="guideNav">1 / 6</span>
         <b id="guideQ">"고향이 어디세요?"</b>
         <span id="guideTip">고향 마을 이름이 가사의 첫 줄이 됩니다.</span>
+        <span class="guide-next">탭하면 다음 질문 ›</span>
       </div>
 
       <button class="rec-btn" id="recBtn">듣기<br>시작</button>
@@ -288,8 +295,10 @@ const store = {
 };
 
 /* ---------- 상태 ---------- */
-let state = { name:'', place:'', mood:'신나는 정통 트로트', vocal:'여성', transcript:'', songs:[] };
+let state = { name:'', place:'', mood:'따뜻한 가스펠 찬양 스타일', vocal:'여성', vocalEn:'warm female vocal', transcript:'', songs:[] };
 try { const saved = store.get('onmaeum_songs'); if (saved) state.songs = JSON.parse(saved); } catch(e){}
+
+const IS_MOBILE = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
 const $ = id => document.getElementById(id);
 const panels = ['p0','p1','p2'];
@@ -321,6 +330,7 @@ function bindChips(boxId, key){
       $(boxId).querySelectorAll('.chip').forEach(x=>x.classList.remove('sel'));
       c.classList.add('sel');
       state[key] = c.dataset.v;
+      if(c.dataset.en) state[key+'En'] = c.dataset.en;
     };
   });
 }
@@ -353,6 +363,10 @@ function rotateGuide(){
   $('guideTip').textContent = guides[gIdx][1];
   $('guideNav').textContent = (gIdx+1)+' / '+guides.length;
 }
+$('guideCard').onclick = ()=>{
+  rotateGuide();
+  if(gTimer){ clearInterval(gTimer); gTimer = setInterval(rotateGuide, 25000); } // 탭하면 자동 순환 타이머 리셋
+};
 
 /* ---------- 녹음 + 음성인식 ---------- */
 let recognizing = false, recog = null, mediaRec = null, chunks = [], audioURL = null;
@@ -432,7 +446,13 @@ $('recBtn').onclick = async ()=>{
     },1000);
     gTimer = setInterval(rotateGuide, 25000);
     startRecognition();
-    startAudioBackup();
+    // 모바일에서는 음성 인식과 녹음이 마이크를 두고 충돌하므로 받아쓰기만 사용
+    if(!IS_MOBILE){
+      startAudioBackup();
+    }else{
+      $('dlAudio').style.display = 'none';
+      $('recNotice').innerHTML = '모바일에서는 받아쓰기에 집중하기 위해 음성 파일 저장을 끕니다. 받아쓰기가 잠깐 멈추면 조용한 곳에서 다시 눌러 주세요.';
+    }
   }else{
     stopRec();
   }
@@ -492,7 +512,7 @@ ${state.transcript}
 2. 후렴에 반드시 "${state.name}" 성함이 자연스럽게 2번 이상 들어갈 것.
 3. 대화록의 구체적인 사실(고향, 평생의 일, 자녀, 기뻤던 순간)을 가사에 녹일 것. 대화록에 없는 사실을 지어내지 말 것.
 4. 마지막 절이나 후렴에 예수님의 사랑·위로가 은은하게 담기되, 설교조가 아닌 따뜻한 축복으로.
-5. style_prompt는 Suno에 넣을 영어 스타일 설명 (장르, 분위기, 악기, ${state.vocal==='여성'?'female':'male'} vocal, Korean trot 명시, 100자 이내).
+5. style_prompt는 Suno에 넣을 영어 스타일 설명 (곡 분위기 "${state.mood}"에 어울리는 장르·악기·무드, 트로트 계열이면 Korean trot 명시, 보컬은 ${state.vocalEn || 'warm female vocal'}, 100자 이내).
 
 아래 JSON 형식으로만 응답하세요. 다른 텍스트, 마크다운 백틱 금지:
 {"title":"곡 제목(어르신 성함 포함)","summary":"어르신 인생 이야기 3문장 요약","lyrics":"가사 전체(줄바꿈 \\n)","style_prompt":"english style prompt"}`;
