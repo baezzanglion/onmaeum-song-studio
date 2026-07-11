@@ -95,6 +95,12 @@
   .progress{display:none;margin-top:14px;text-align:center;font-family:'Gaegu',cursive;color:var(--sea-deep);font-size:1.05rem}
   .bar{height:8px;background:var(--paper-deep);border-radius:6px;overflow:hidden;margin-top:8px}
   .bar i{display:block;height:100%;width:0%;background:var(--persimmon);transition:width .2s;border-radius:6px}
+
+  .dbg{
+    display:none;margin-top:14px;background:#1e1b17;color:#9fd3c7;border-radius:10px;
+    padding:10px 12px;font-family:monospace;font-size:.7rem;line-height:1.55;
+    max-height:180px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;
+  }
 </style>
 </head>
 <body>
@@ -128,11 +134,13 @@
       <button class="btn" id="savePng">이미지로 저장</button>
       <button class="btn warm" id="printBtn">🖨 인쇄하기</button>
     </div>
+    <button class="btn ghost" id="printBtnB">🖨 방식 B로 인쇄 (기본 방식이 안 될 때)</button>
 
     <div class="progress" id="prog">
       <span id="progText">인쇄 중…</span>
       <div class="bar"><i id="progBar"></i></div>
     </div>
+    <div class="dbg" id="dbg"></div>
   </div>
 
   <div class="notice" id="mainNotice">
@@ -155,6 +163,7 @@
     <label>사진 밝기 보정 <span class="range-val" id="brightVal"></span></label>
     <input type="range" id="bright" min="-40" max="40" step="5">
     <button class="btn" id="testPrint">프린터 테스트 인쇄</button>
+    <button class="btn ghost" id="feedTest">용지 이송 테스트 (진단용)</button>
     <button class="btn ghost" id="closeSettings">닫기</button>
   </div>
 </div>
@@ -385,7 +394,16 @@ $('savePng').onclick = ()=>{
 };
 
 /* ================= 고양이 프린터 (Web Bluetooth) ================= */
-let btDevice = null, btChar = null;
+let btDevice = null, btChar = null, btData = null, btNotify = null;
+
+function log(msg){
+  const d = $('dbg');
+  d.style.display = 'block';
+  const t = new Date().toTimeString().slice(0,8);
+  d.textContent += `[${t}] ${msg}\n`;
+  d.scrollTop = d.scrollHeight;
+}
+function hex(u8){ return Array.from(u8).map(b=>b.toString(16).padStart(2,'0')).join(' '); }
 
 function crc8(data){
   let c = 0;
@@ -395,10 +413,21 @@ function crc8(data){
   }
   return c;
 }
+/* 방식 A(표준 고양이 프린터, iPrint 계열): 0x51 0x78 프레임 */
 function pkt(cmd, payload){
   const p = Uint8Array.from(payload);
   const buf = new Uint8Array(8 + p.length);
   buf.set([0x51,0x78,cmd,0x00,p.length&0xFF,(p.length>>8)&0xFF],0);
+  buf.set(p,6);
+  buf[6+p.length] = crc8(p);
+  buf[7+p.length] = 0xFF;
+  return buf;
+}
+/* 방식 B(신형/변종 펌웨어, MXW01·SC 계열 추정): 0x22 0x21 프레임 */
+function pktB(cmd, payload){
+  const p = Uint8Array.from(payload);
+  const buf = new Uint8Array(8 + p.length);
+  buf.set([0x22,0x21,cmd,0x00,p.length&0xFF,(p.length>>8)&0xFF],0);
   buf.set(p,6);
   buf[6+p.length] = crc8(p);
   buf[7+p.length] = 0xFF;
@@ -414,16 +443,36 @@ async function connectPrinter(){
       {services:[SVC1]}, {services:[SVC2]},
       {namePrefix:'GB0'},{namePrefix:'GT0'},{namePrefix:'YT0'},
       {namePrefix:'MX0'},{namePrefix:'MX1'},{namePrefix:'MXW'},{namePrefix:'MXTP'},
+      {namePrefix:'SC0'},{namePrefix:'SC1'},
     ],
     optionalServices:[SVC1, SVC2],
   });
-  btDevice.addEventListener('gattserverdisconnected', ()=>setPrStatus(false));
+  btDevice.addEventListener('gattserverdisconnected', ()=>{ setPrStatus(false); log('연결 끊김'); });
   const server = await btDevice.gatt.connect();
   let svc;
-  try{ svc = await server.getPrimaryService(SVC1); }
-  catch(e){ svc = await server.getPrimaryService(SVC2); }
+  try{ svc = await server.getPrimaryService(SVC1); log('서비스 0xAE30'); }
+  catch(e){ svc = await server.getPrimaryService(SVC2); log('서비스 0xAF30'); }
+
   btChar = await svc.getCharacteristic(0xae01);
+  log('제어 특성 0xAE01 확보');
+
+  // 데이터 특성(0xAE03) — 신형 프로토콜용. 없으면 무시
+  btData = null;
+  try{ btData = await svc.getCharacteristic(0xae03); log('데이터 특성 0xAE03 확보'); }
+  catch(e){ log('0xAE03 없음 (구형 프로토콜로 추정)'); }
+
+  // 알림 구독 — 프린터가 보내는 응답을 로그로 확인
+  try{
+    btNotify = await svc.getCharacteristic(0xae02);
+    await btNotify.startNotifications();
+    btNotify.addEventListener('characteristicvaluechanged', e=>{
+      log('◀ 프린터 응답: ' + hex(new Uint8Array(e.target.value.buffer)));
+    });
+    log('알림(0xAE02) 구독 완료');
+  }catch(e){ log('알림 구독 실패: '+e.message); }
+
   setPrStatus(true, btDevice.name);
+  log('연결됨: ' + btDevice.name);
 }
 function setPrStatus(on, name){
   const s = $('prStatus');
@@ -431,34 +480,58 @@ function setPrStatus(on, name){
   $('prStatusText').textContent = on ? ('프린터 연결됨: '+name) : '프린터 연결 안 됨 (이미지 저장은 가능)';
 }
 
-async function sendAll(bytes, onProgress){
-  const CHUNK = 120;
+async function writeChunks(char, bytes, onProgress, chunkSize, delayMs){
+  const CHUNK = chunkSize || 100;
+  const DELAY = delayMs ?? 25;
   for(let i=0;i<bytes.length;i+=CHUNK){
     const part = bytes.slice(i, i+CHUNK);
-    if(btChar.writeValueWithoutResponse) await btChar.writeValueWithoutResponse(part);
-    else await btChar.writeValue(part);
+    if(char.writeValueWithoutResponse) await char.writeValueWithoutResponse(part);
+    else await char.writeValue(part);
     if(onProgress) onProgress(Math.min(1, (i+CHUNK)/bytes.length));
-    await new Promise(r=>setTimeout(r, 22));
+    await new Promise(r=>setTimeout(r, DELAY));
+  }
+}
+const sendAll = (bytes, onProgress)=>writeChunks(btChar, bytes, onProgress);
+
+async function ensureConnected(){
+  if(!navigator.bluetooth){
+    showErr('이 브라우저는 블루투스를 지원하지 않아요. 안드로이드 크롬에서 열어 주세요. (아이패드/사파리 불가)');
+    return false;
+  }
+  try{
+    if(!btChar || !btDevice?.gatt?.connected) await connectPrinter();
+    return true;
+  }catch(e){
+    log('연결 실패: '+e.message);
+    showErr('프린터 연결이 취소되었거나 실패했어요. 프린터 전원과 블루투스를 확인하고 다시 시도해 주세요.');
+    return false;
   }
 }
 
-function buildPrintJob(bits, w, h){
-  const parts = [];
-  const energy = Math.round(0x2000 + (cfg.energy/10) * (0xE000)); // 진하기 → 에너지
-  parts.push(pkt(0xA4,[0x32]));                       // 품질
-  parts.push(pkt(0xAF,[energy & 0xFF, (energy>>8)&0xFF])); // 에너지(진하기)
-  parts.push(pkt(0xBE,[0x00]));                       // 이미지 모드
-  parts.push(pkt(0xA6, LATTICE_START));
-  const rowBytes = w >> 3; // 48
+function rowsFromBits(bits, w, h){
+  const rowBytes = w >> 3;
+  const rows = [];
   for(let y=0;y<h;y++){
     const row = new Uint8Array(rowBytes);
     for(let x=0;x<w;x++){
       if(bits[y*w+x]) row[x>>3] |= (1 << (x & 7)); // LSB 우선, 1=검정
     }
-    parts.push(pkt(0xA2, row));
+    rows.push(row);
   }
-  parts.push(pkt(0xBD,[0x19]));                       // 급지 속도
-  parts.push(pkt(0xA1,[0x60,0x00]));                  // 용지 배출(96줄)
+  return rows;
+}
+
+/* ---------- 방식 A: 표준 고양이 프린터 ---------- */
+function buildPrintJob(bits, w, h){
+  const parts = [];
+  const energy = Math.round(0x2000 + (cfg.energy/10) * 0xC000);
+  parts.push(pkt(0xA4,[0x32]));
+  parts.push(pkt(0xAF,[energy & 0xFF, (energy>>8)&0xFF]));
+  parts.push(pkt(0xBE,[0x00]));
+  parts.push(pkt(0xA6, LATTICE_START));
+  for(const row of rowsFromBits(bits,w,h)) parts.push(pkt(0xA2, row));
+  parts.push(pkt(0xBD,[0x19]));
+  parts.push(pkt(0xA1,[0x60,0x00]));
   parts.push(pkt(0xA6, LATTICE_END));
   const total = parts.reduce((s,p)=>s+p.length,0);
   const all = new Uint8Array(total);
@@ -467,37 +540,78 @@ function buildPrintJob(bits, w, h){
 }
 
 async function doPrint(bits, h){
-  if(!navigator.bluetooth){
-    showErr('이 브라우저는 블루투스를 지원하지 않아요. 안드로이드 크롬에서 열어 주세요. (아이패드/사파리 불가)');
-    return;
-  }
-  try{
-    if(!btChar || !btDevice?.gatt?.connected) await connectPrinter();
-  }catch(e){
-    showErr('프린터 연결이 취소되었거나 실패했어요. 프린터 전원과 블루투스를 확인하고 다시 시도해 주세요.');
-    return;
-  }
+  if(!(await ensureConnected())) return;
+  log(`방식 A 인쇄 시작 (${W}x${h})`);
   const job = buildPrintJob(bits, W, h);
   $('prog').style.display='block';
-  $('progText').textContent = '인쇄 중… 프린터에서 종이가 나오기 시작해요';
+  $('progText').textContent = '인쇄 중… (방식 A)';
   try{
     await sendAll(job, p=>{ $('progBar').style.width = Math.round(p*100)+'%'; });
-    $('progText').textContent = '인쇄 완료! ✂ 점선을 따라 잘라 드리세요';
-    setTimeout(()=>{ $('prog').style.display='none'; $('progBar').style.width='0%'; }, 4000);
+    log('방식 A 전송 완료 ('+job.length+' bytes)');
+    $('progText').textContent = '전송 완료! 종이가 안 나오면 [방식 B로 인쇄]를 눌러 보세요';
+    setTimeout(()=>{ $('prog').style.display='none'; $('progBar').style.width='0%'; }, 6000);
   }catch(e){
     $('prog').style.display='none';
-    showErr('인쇄 도중 연결이 끊겼어요. 프린터를 껐다 켜고 다시 시도해 주세요. ('+e+')');
+    log('방식 A 오류: '+e.message);
+    showErr('인쇄 도중 연결이 끊겼어요. 프린터를 껐다 켜고 다시 시도해 주세요.');
     btChar = null;
+  }
+}
+
+/* ---------- 방식 B: 신형/변종 펌웨어 (실험적) ---------- */
+async function doPrintB(bits, h){
+  if(!(await ensureConnected())) return;
+  log(`방식 B 인쇄 시작 (${W}x${h})`);
+  $('prog').style.display='block';
+  $('progText').textContent = '인쇄 중… (방식 B)';
+  try{
+    const intensity = Math.round(0x20 + (cfg.energy/10)*0x60); // 진하기
+    await writeChunks(btChar, pktB(0xA2,[intensity]), null);          // 농도 설정
+    log('▶ B: 농도 '+intensity);
+    await writeChunks(btChar, pktB(0xA9,[h&0xFF,(h>>8)&0xFF,0x30,0x00]), null); // 인쇄 요청(줄 수)
+    log('▶ B: 인쇄 요청 '+h+'줄');
+    await new Promise(r=>setTimeout(r,150));
+    // 비트맵을 프레임 없이 통째로 데이터 특성에 전송 (없으면 제어 특성으로)
+    const rows = rowsFromBits(bits,W,h);
+    const raw = new Uint8Array(rows.length*48);
+    rows.forEach((r,i)=>raw.set(r,i*48));
+    const target = btData || btChar;
+    log('▶ B: 비트맵 '+raw.length+' bytes → '+(btData?'0xAE03':'0xAE01'));
+    await writeChunks(target, raw, p=>{ $('progBar').style.width = Math.round(p*100)+'%'; }, 180, 18);
+    await writeChunks(btChar, pktB(0xAD,[0x00]), null);               // 마무리(flush)
+    log('▶ B: 전송 완료');
+    $('progText').textContent = '방식 B 전송 완료! 결과를 확인해 주세요';
+    setTimeout(()=>{ $('prog').style.display='none'; $('progBar').style.width='0%'; }, 6000);
+  }catch(e){
+    $('prog').style.display='none';
+    log('방식 B 오류: '+e.message);
+    showErr('방식 B 인쇄 중 오류가 났어요. 화면 아래 로그를 캡처해 공유해 주세요.');
   }
 }
 function showErr(msg){
   const n = $('mainNotice');
   n.classList.add('err');
   n.innerHTML = msg;
-  setTimeout(()=>{ n.classList.remove('err'); n.innerHTML = '<b>처음 설정:</b> 프린터 전원을 켜고 [🖨 인쇄하기]를 누르면 블루투스 기기 선택창이 떠요. GB / GT / MX / YT로 시작하는 이름을 선택하면 연결됩니다.'; }, 8000);
+  setTimeout(()=>{ n.classList.remove('err'); n.innerHTML = '<b>처음 설정:</b> 프린터 전원을 켜고 [🖨 인쇄하기]를 누르면 블루투스 기기 선택창이 떠요. GB / GT / MX / YT / SC로 시작하는 이름을 선택하면 연결됩니다.'; }, 8000);
 }
 
 $('printBtn').onclick = ()=>{ if(lastBits) doPrint(lastBits, lastH); };
+$('printBtnB').onclick = ()=>{ if(lastBits) doPrintB(lastBits, lastH); };
+
+/* 용지 이송 테스트: 최소 명령만 보내 기계 반응 확인 (프로토콜 진단의 핵심) */
+$('feedTest').onclick = async ()=>{
+  $('modalBg').classList.remove('show');
+  if(!(await ensureConnected())) return;
+  log('용지 이송 테스트: 방식 A 급지 명령 전송');
+  try{
+    await sendAll(pkt(0xA1,[0x40,0x00]));
+    log('A 급지 전송됨 — 종이가 움직였는지 확인하세요');
+    await new Promise(r=>setTimeout(r,1500));
+    log('용지 이송 테스트: 방식 B 급지 명령 전송');
+    await sendAll(pktB(0xA1,[0x40,0x00]));
+    log('B 급지 전송됨 — 이번에 움직였다면 이 프린터는 방식 B입니다');
+  }catch(e){ log('이송 테스트 오류: '+e.message); }
+};
 
 /* 테스트 인쇄: 성함 없이 말씀만 있는 작은 카드 */
 $('testPrint').onclick = async ()=>{
