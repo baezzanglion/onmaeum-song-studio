@@ -113,8 +113,8 @@
 
   <div class="status" id="prStatus"><span class="dot"></span><span id="prStatusText">프린터 연결 안 됨 (이미지 저장은 가능)</span></div>
 
-  <label>어르신 성함 (선택)</label>
-  <input type="text" id="elderName" placeholder="예) 김순자" autocomplete="off">
+  <label>성함 + 호칭 (선택)</label>
+  <input type="text" id="elderName" placeholder="예) 김순자 권사님, 박종배 어르신" autocomplete="off">
 
   <button class="big-shoot" id="shootBtn">
     📷 사진 찍기
@@ -212,9 +212,9 @@ const cfg = {
   set church(v){ store.set('om_church', v); },
   get footer(){ return store.get('om_footer') || '온마음 · 예수님이 사랑하십니다'; },
   set footer(v){ store.set('om_footer', v); },
-  get energy(){ return parseInt(store.get('om_energy')||'6'); },
+  get energy(){ return parseInt(store.get('om_energy')||'5'); },
   set energy(v){ store.set('om_energy', v); },
-  get bright(){ return parseInt(store.get('om_bright')||'10'); },
+  get bright(){ return parseInt(store.get('om_bright')||'15'); },
   set bright(v){ store.set('om_bright', v); },
 };
 
@@ -291,10 +291,10 @@ function buildCard(){
     y += photoH + 14;
   }
 
-  // 성함
+  // 성함 (입력한 호칭 그대로 표시)
   if(name){
     ctx.font = '700 44px "Gaegu", cursive';
-    ctx.fillText(name + ' 어르신', W/2, y+44); y += 74;
+    ctx.fillText(name, W/2, y+44); y += 74;
   }
 
   // 구분선 (점선)
