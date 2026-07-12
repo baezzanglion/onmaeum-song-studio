@@ -258,13 +258,13 @@ function buildCard(){
   ctx.font = '700 30px "Gowun Batang", serif';
   const verseLines = wrapText(ctx, verse, W-56);
   const nameBlock = name ? 74 : 0;
-  const H = 26+34+18 + photoH + 14 + nameBlock + 20 + verseLines.length*44 + 34 + 22 + 40 + 26;
+  const H = 8+34+18 + photoH + 14 + nameBlock + 20 + verseLines.length*44 + 34 + 22 + 40 + 44;
   c.width = W; c.height = H;
 
   // --- 배경 ---
   ctx.fillStyle = '#fff'; ctx.fillRect(0,0,W,H);
   ctx.fillStyle = '#000'; ctx.textAlign = 'center';
-  let y = 26;
+  let y = 8;
 
   // 상단: 교회명 + 날짜
   ctx.font = '700 26px "Gaegu", cursive';
@@ -531,7 +531,7 @@ function buildPrintJob(bits, w, h){
   parts.push(pkt(0xA6, LATTICE_START));
   for(const row of rowsFromBits(bits,w,h)) parts.push(pkt(0xA2, row));
   parts.push(pkt(0xBD,[0x19]));
-  parts.push(pkt(0xA1,[0x60,0x00]));
+  parts.push(pkt(0xA1,[0x80,0x00]));   // 인쇄 후 배출(128줄) — 찢을 때 하단 문구 보호
   parts.push(pkt(0xA6, LATTICE_END));
   const total = parts.reduce((s,p)=>s+p.length,0);
   const all = new Uint8Array(total);
