@@ -43,6 +43,12 @@
     background:var(--card);font-family:'Gowun Batang',serif;font-size:1.15rem;color:var(--ink);
   }
   input:focus{outline:2px solid var(--sea);border-color:transparent}
+  .chips{display:flex;gap:8px;margin-top:4px}
+  .chip{
+    padding:9px 16px;border-radius:20px;border:1.5px solid var(--line);background:var(--card);
+    font-family:'Gaegu',cursive;font-size:1.05rem;cursor:pointer;color:var(--ink-soft);transition:.15s
+  }
+  .chip.sel{background:var(--persimmon);border-color:var(--persimmon);color:#fff}
 
   .big-shoot{
     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
@@ -116,11 +122,17 @@
   <label>성함 <span style="font-weight:400;opacity:.7">— 호칭까지 적으면 그대로 인쇄돼요</span></label>
   <input type="text" id="elderName" placeholder="예) 박종배 형제님, 박하늘 자매님" autocomplete="off">
 
+  <label>카메라</label>
+  <div class="chips" id="facingChips" style="margin-bottom:4px">
+    <button class="chip sel" data-v="user">🤳 셀카 (화면 보며)</button>
+    <button class="chip" data-v="environment">📷 후면</button>
+  </div>
+
   <button class="big-shoot" id="shootBtn">
     📷 사진 찍기
     <span>누르면 카메라가 열려요</span>
   </button>
-  <input type="file" id="camInput" accept="image/*" capture="environment" style="display:none">
+  <input type="file" id="camInput" accept="image/*" capture="user" style="display:none">
 
   <div class="preview-area" id="previewArea">
     <div class="preview-frame"><canvas id="previewCanvas"></canvas></div>
@@ -368,7 +380,19 @@ async function renderPreview(){
 }
 
 /* ================= 촬영 흐름 ================= */
-$('shootBtn').onclick = ()=> $('camInput').click();
+let facing = store.get('om_facing') || 'user';
+function syncFacing(){
+  document.querySelectorAll('#facingChips .chip').forEach(c=>{
+    c.classList.toggle('sel', c.dataset.v === facing);
+  });
+  $('camInput').setAttribute('capture', facing);
+}
+document.querySelectorAll('#facingChips .chip').forEach(c=>{
+  c.onclick = ()=>{ facing = c.dataset.v; store.set('om_facing', facing); syncFacing(); };
+});
+syncFacing();
+
+$('shootBtn').onclick = ()=>{ syncFacing(); $('camInput').click(); };
 $('camInput').onchange = async e=>{
   const f = e.target.files[0];
   if(!f) return;
@@ -382,7 +406,7 @@ $('rerollVerse').onclick = async ()=>{
   verseIdx = (verseIdx + 1 + Math.floor(Math.random()*(VERSES.length-1))) % VERSES.length;
   await renderPreview();
 };
-$('retake').onclick = ()=> $('camInput').click();
+$('retake').onclick = ()=>{ syncFacing(); $('camInput').click(); };
 $('savePng').onclick = ()=>{
   $('previewCanvas').toBlob(b=>{
     const a = document.createElement('a');
