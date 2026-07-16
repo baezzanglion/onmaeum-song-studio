@@ -71,6 +71,13 @@
     background:none;border:none;color:rgba(255,255,255,.75);font-family:'Gowun Batang',serif;
     font-size:.85rem;text-decoration:underline;cursor:pointer;padding-bottom:18px;
   }
+  .cam-side.on{background:var(--persimmon)}
+  .cam-count{
+    position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+    font-family:'Gaegu',cursive;font-size:9rem;color:#fff;font-weight:700;
+    text-shadow:0 4px 24px rgba(0,0,0,.6);pointer-events:none;
+  }
+  .cam-count.show{display:flex}
 
   .big-shoot{
     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
@@ -186,8 +193,10 @@
 <!-- 페이지 내 카메라 -->
 <div class="cam-view" id="camView">
   <video id="camVideo" autoplay playsinline muted></video>
+  <div class="cam-count" id="camCount">3</div>
   <div class="cam-controls">
     <button class="cam-side" id="camClose" aria-label="닫기">✕</button>
+    <button class="cam-side" id="camTimer" aria-label="타이머">⏱</button>
     <button class="cam-snap" id="camSnap" aria-label="촬영"></button>
     <button class="cam-side" id="camFlip" aria-label="카메라 전환">🔄</button>
   </div>
@@ -459,7 +468,21 @@ $('camFlip').onclick = ()=>{
 };
 $('camFallback').onclick = ()=>{ stopCam(); $('camView').classList.remove('show'); $('camInput').click(); };
 
-$('camSnap').onclick = async ()=>{
+/* 타이머 (⏱ 버튼: 끔 ↔ 3초) */
+let camTimerOn = store.get('om_cam_timer') === '1';
+let counting = false;
+function syncTimerBtn(){
+  $('camTimer').classList.toggle('on', camTimerOn);
+  $('camTimer').textContent = camTimerOn ? '⏱3' : '⏱';
+}
+syncTimerBtn();
+$('camTimer').onclick = ()=>{
+  camTimerOn = !camTimerOn;
+  store.set('om_cam_timer', camTimerOn ? '1' : '0');
+  syncTimerBtn();
+};
+
+async function captureFrame(){
   const video = $('camVideo');
   if(!camStream || !video.videoWidth) return;
   const c = document.createElement('canvas');
@@ -471,6 +494,24 @@ $('camSnap').onclick = async ()=>{
   verseIdx = Math.floor(Math.random()*VERSES.length);
   await renderPreview();
   window.scrollTo({top:document.body.scrollHeight, behavior:'smooth'});
+}
+
+$('camSnap').onclick = async ()=>{
+  if(counting || !camStream) return;
+  if(!camTimerOn){ captureFrame(); return; }
+  counting = true;
+  const cnt = $('camCount');
+  cnt.classList.add('show');
+  for(let n=3; n>=1; n--){
+    cnt.textContent = n;
+    await new Promise(r=>setTimeout(r, 1000));
+    if(!camStream){ counting=false; cnt.classList.remove('show'); return; } // 도중에 닫힌 경우
+  }
+  cnt.textContent = '📸';
+  await new Promise(r=>setTimeout(r, 250));
+  cnt.classList.remove('show');
+  counting = false;
+  captureFrame();
 };
 $('camInput').onchange = async e=>{
   const f = e.target.files[0];
