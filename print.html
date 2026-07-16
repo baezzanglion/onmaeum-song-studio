@@ -50,6 +50,28 @@
   }
   .chip.sel{background:var(--persimmon);border-color:var(--persimmon);color:#fff}
 
+  /* 페이지 내 카메라 */
+  .cam-view{
+    position:fixed;inset:0;background:#000;z-index:100;display:none;
+    flex-direction:column;align-items:center;justify-content:center;
+  }
+  .cam-view.show{display:flex}
+  .cam-view video{width:100%;max-height:70vh;object-fit:contain;background:#000}
+  .cam-view video.mirror{transform:scaleX(-1)}
+  .cam-controls{display:flex;align-items:center;gap:26px;padding:22px 0}
+  .cam-snap{
+    width:84px;height:84px;border-radius:50%;border:5px solid #fff;background:var(--persimmon);
+    cursor:pointer;box-shadow:0 0 0 6px rgba(255,255,255,.25);
+  }
+  .cam-side{
+    width:56px;height:56px;border-radius:50%;border:none;background:rgba(255,255,255,.18);
+    color:#fff;font-size:1.5rem;cursor:pointer;
+  }
+  .cam-fallback{
+    background:none;border:none;color:rgba(255,255,255,.75);font-family:'Gowun Batang',serif;
+    font-size:.85rem;text-decoration:underline;cursor:pointer;padding-bottom:18px;
+  }
+
   .big-shoot{
     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
     width:100%;padding:34px 0;margin-top:20px;border:none;border-radius:20px;cursor:pointer;
@@ -159,6 +181,17 @@
     <b>처음 설정:</b> 프린터 전원을 켜고 [🖨 인쇄하기]를 누르면 블루투스 기기 선택창이 떠요. GB / GT / MX / YT로 시작하는 이름을 선택하면 연결됩니다. 한 번 연결하면 계속 유지돼요.<br>
     ※ 안드로이드 크롬에서 작동합니다 (아이패드 불가)
   </div>
+</div>
+
+<!-- 페이지 내 카메라 -->
+<div class="cam-view" id="camView">
+  <video id="camVideo" autoplay playsinline muted></video>
+  <div class="cam-controls">
+    <button class="cam-side" id="camClose" aria-label="닫기">✕</button>
+    <button class="cam-snap" id="camSnap" aria-label="촬영"></button>
+    <button class="cam-side" id="camFlip" aria-label="카메라 전환">🔄</button>
+  </div>
+  <button class="cam-fallback" id="camFallback">카메라가 안 보이면 여기를 눌러 카메라 앱으로 찍기</button>
 </div>
 
 <!-- 설정 -->
@@ -379,7 +412,7 @@ async function renderPreview(){
   $('previewArea').style.display = 'block';
 }
 
-/* ================= 촬영 흐름 ================= */
+/* ================= 촬영 흐름 (페이지 내 카메라 우선) ================= */
 let facing = store.get('om_facing') || 'user';
 function syncFacing(){
   document.querySelectorAll('#facingChips .chip').forEach(c=>{
@@ -388,11 +421,57 @@ function syncFacing(){
   $('camInput').setAttribute('capture', facing);
 }
 document.querySelectorAll('#facingChips .chip').forEach(c=>{
-  c.onclick = ()=>{ facing = c.dataset.v; store.set('om_facing', facing); syncFacing(); };
+  c.onclick = ()=>{ facing = c.dataset.v; store.set('om_facing', facing); syncFacing(); if(camStream) startCam(); };
 });
 syncFacing();
 
-$('shootBtn').onclick = ()=>{ syncFacing(); $('camInput').click(); };
+let camStream = null;
+
+async function startCam(){
+  stopCam();
+  const video = $('camVideo');
+  try{
+    camStream = await navigator.mediaDevices.getUserMedia({
+      video:{ facingMode: facing, width:{ideal:1440}, height:{ideal:1440} },
+      audio:false
+    });
+    video.srcObject = camStream;
+    video.classList.toggle('mirror', facing==='user'); // 셀카는 거울처럼 보이게
+    $('camView').classList.add('show');
+  }catch(e){
+    // 카메라 접근 실패 → 카메라 앱 폴백
+    stopCam();
+    $('camView').classList.remove('show');
+    $('camInput').click();
+  }
+}
+function stopCam(){
+  if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream = null; }
+  $('camVideo').srcObject = null;
+}
+
+$('shootBtn').onclick = ()=>{ syncFacing(); startCam(); };
+$('retake').onclick = ()=>{ syncFacing(); startCam(); };
+$('camClose').onclick = ()=>{ stopCam(); $('camView').classList.remove('show'); };
+$('camFlip').onclick = ()=>{
+  facing = (facing==='user') ? 'environment' : 'user';
+  store.set('om_facing', facing); syncFacing(); startCam();
+};
+$('camFallback').onclick = ()=>{ stopCam(); $('camView').classList.remove('show'); $('camInput').click(); };
+
+$('camSnap').onclick = async ()=>{
+  const video = $('camVideo');
+  if(!camStream || !video.videoWidth) return;
+  const c = document.createElement('canvas');
+  c.width = video.videoWidth; c.height = video.videoHeight;
+  c.getContext('2d').drawImage(video, 0, 0);
+  stopCam();
+  $('camView').classList.remove('show');
+  photoBitmap = c;
+  verseIdx = Math.floor(Math.random()*VERSES.length);
+  await renderPreview();
+  window.scrollTo({top:document.body.scrollHeight, behavior:'smooth'});
+};
 $('camInput').onchange = async e=>{
   const f = e.target.files[0];
   if(!f) return;
@@ -406,7 +485,6 @@ $('rerollVerse').onclick = async ()=>{
   verseIdx = (verseIdx + 1 + Math.floor(Math.random()*(VERSES.length-1))) % VERSES.length;
   await renderPreview();
 };
-$('retake').onclick = ()=>{ syncFacing(); $('camInput').click(); };
 $('savePng').onclick = ()=>{
   $('previewCanvas').toBlob(b=>{
     const a = document.createElement('a');
