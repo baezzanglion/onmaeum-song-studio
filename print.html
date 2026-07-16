@@ -217,6 +217,9 @@
     <p>인쇄가 흐리면 진하기를 올려 보세요. 너무 진하면 사진이 뭉개질 수 있어요.</p>
     <label>사진 밝기 보정 <span class="range-val" id="brightVal"></span></label>
     <input type="range" id="bright" min="-40" max="40" step="5">
+    <label>사진 선명도 <span class="range-val" id="sharpVal"></span></label>
+    <input type="range" id="sharp" min="0" max="10" step="1">
+    <p>선명도를 올리면 얼굴 윤곽이 또렷해져요. 너무 올리면 배경이 거칠어질 수 있어요.</p>
     <button class="btn" id="testPrint">프린터 테스트 인쇄</button>
     <button class="btn ghost" id="feedTest">용지 이송 테스트 (진단용)</button>
     <button class="btn ghost" id="closeSettings">닫기</button>
@@ -273,6 +276,67 @@ const VERSES = [
   ["사람이 마음으로 자기의 길을 계획할지라도 그의 걸음을 인도하시는 이는 여호와시니라","잠언 16:9"],
   ["우리가 사랑함은 그가 먼저 우리를 사랑하셨음이라","요한일서 4:19"],
   ["여호와께 감사하라 그는 선하시며 그 인자하심이 영원함이로다","시편 107:1"],
+  ["하나님은 우리의 피난처시요 힘이시니 환난 중에 만날 큰 도움이시라","시편 46:1"],
+  ["너희는 가만히 있어 내가 하나님 됨을 알지어다","시편 46:10"],
+  ["여호와를 기뻐하라 그가 네 마음의 소원을 네게 이루어 주시리로다","시편 37:4"],
+  ["네 길을 여호와께 맡기라 그를 의지하면 그가 이루시고","시편 37:5"],
+  ["네 짐을 여호와께 맡기라 그가 너를 붙드시고","시편 55:22"],
+  ["너희는 여호와의 선하심을 맛보아 알지어다","시편 34:8"],
+  ["감사함으로 그의 문에 들어가며 찬송함으로 그의 궁정에 들어가서","시편 100:4"],
+  ["이 날은 여호와께서 정하신 것이라 이 날에 우리가 즐거워하고 기뻐하리로다","시편 118:24"],
+  ["보라 형제가 연합하여 동거함이 어찌 그리 선하고 아름다운고","시편 133:1"],
+  ["내가 주께 감사하옴은 나를 지으심이 심히 기묘하심이라","시편 139:14"],
+  ["그가 너를 위하여 그의 천사들을 명령하사 네 모든 길에서 너를 지키게 하심이라","시편 91:11"],
+  ["내가 평안히 눕고 자기도 하리니 나를 안전히 살게 하시는 이는 오직 여호와이시니이다","시편 4:8"],
+  ["주께서 생명의 길을 내게 보이시리니 주의 앞에는 충만한 기쁨이 있고","시편 16:11"],
+  ["여호와는 나의 힘과 나의 방패이시니 내 마음이 그를 의지하여 도움을 얻었도다","시편 28:7"],
+  ["나의 영혼이 잠잠히 하나님만 바람이여 나의 구원이 그에게서 나오는도다","시편 62:1"],
+  ["여호와는 긍휼이 많으시고 은혜로우시며 노하기를 더디 하시고 인자하심이 풍부하시도다","시편 103:8"],
+  ["저녁에는 울음이 깃들일지라도 아침에는 기쁨이 오리로다","시편 30:5"],
+  ["여호와 하나님은 해요 방패이시라","시편 84:11"],
+  ["우리에게 우리 날 계수함을 가르치사 지혜로운 마음을 얻게 하소서","시편 90:12"],
+  ["마음의 즐거움은 양약이라","잠언 17:22"],
+  ["여호와의 이름은 견고한 망대라 의인은 그리로 달려가서 안전함을 얻느니라","잠언 18:10"],
+  ["나 여호와 네 하나님이 네 오른손을 붙들고 네게 이르기를 두려워하지 말라 내가 너를 도우리라","이사야 41:13"],
+  ["네가 물 가운데로 지날 때에 내가 너와 함께 할 것이라","이사야 43:2"],
+  ["네가 내 눈에 보배롭고 존귀하며 내가 너를 사랑하였은즉","이사야 43:4"],
+  ["주께서 심지가 견고한 자를 평강하고 평강하도록 지키시리니","이사야 26:3"],
+  ["산들이 떠나며 언덕들은 옮겨질지라도 나의 자비는 네게서 떠나지 아니하며","이사야 54:10"],
+  ["일어나라 빛을 발하라 이는 네 빛이 이르렀고 여호와의 영광이 네 위에 임하였음이니라","이사야 60:1"],
+  ["너는 내게 부르짖으라 내가 네게 응답하겠고 네가 알지 못하는 크고 은밀한 일을 네게 보이리라","예레미야 33:3"],
+  ["여호와의 인자와 긍휼이 무궁하시므로 우리가 진멸되지 아니함이니이다","예레미야애가 3:22"],
+  ["그가 너로 말미암아 기쁨을 이기지 못하시며 너를 잠잠히 사랑하시며","스바냐 3:17"],
+  ["오직 정의를 행하며 인자를 사랑하며 겸손하게 네 하나님과 함께 행하는 것이 아니냐","미가 6:8"],
+  ["여호와 그가 네 앞에서 가시며 너와 함께 하사 너를 떠나지 아니하시며","신명기 31:8"],
+  ["화평하게 하는 자는 복이 있나니 그들이 하나님의 아들이라 일컬음을 받을 것임이요","마태복음 5:9"],
+  ["이같이 너희 빛이 사람 앞에 비치게 하라","마태복음 5:16"],
+  ["너희는 먼저 그의 나라와 그의 의를 구하라 그리하면 이 모든 것을 너희에게 더하시리라","마태복음 6:33"],
+  ["내일 일을 위하여 염려하지 말라","마태복음 6:34"],
+  ["볼지어다 내가 세상 끝날까지 너희와 항상 함께 있으리라","마태복음 28:20"],
+  ["믿는 자에게는 능히 하지 못할 일이 없느니라","마가복음 9:23"],
+  ["하나님이 세상을 이처럼 사랑하사 독생자를 주셨으니","요한복음 3:16"],
+  ["나는 세상의 빛이니 나를 따르는 자는 생명의 빛을 얻으리라","요한복음 8:12"],
+  ["내가 온 것은 양으로 생명을 얻게 하고 더 풍성히 얻게 하려는 것이라","요한복음 10:10"],
+  ["나는 포도나무요 너희는 가지라","요한복음 15:5"],
+  ["세상에서는 너희가 환난을 당하나 담대하라 내가 세상을 이기었노라","요한복음 16:33"],
+  ["하나님을 사랑하는 자에게는 모든 것이 합력하여 선을 이루느니라","로마서 8:28"],
+  ["소망 중에 즐거워하며 환난 중에 참으며 기도에 항상 힘쓰며","로마서 12:12"],
+  ["소망의 하나님이 모든 기쁨과 평강을 믿음 안에서 너희에게 충만하게 하시기를","로마서 15:13"],
+  ["누구든지 그리스도 안에 있으면 새로운 피조물이라","고린도후서 5:17"],
+  ["성령의 열매는 사랑과 희락과 화평과 오래 참음과 자비와 양선과 충성","갈라디아서 5:22"],
+  ["너희는 그 은혜에 의하여 믿음으로 말미암아 구원을 받았으니","에베소서 2:8"],
+  ["주 안에서 항상 기뻐하라 내가 다시 말하노니 기뻐하라","빌립보서 4:4"],
+  ["아무 것도 염려하지 말고 모든 일에 기도와 간구로 감사함으로 하나님께 아뢰라","빌립보서 4:6"],
+  ["모든 지각에 뛰어난 하나님의 평강이 너희 마음과 생각을 지키시리라","빌립보서 4:7"],
+  ["그리스도의 평강이 너희 마음을 주장하게 하라","골로새서 3:15"],
+  ["무슨 일을 하든지 마음을 다하여 주께 하듯 하라","골로새서 3:23"],
+  ["하나님이 우리에게 주신 것은 두려워하는 마음이 아니요 오직 능력과 사랑과 절제하는 마음이니","디모데후서 1:7"],
+  ["내가 결코 너희를 버리지 아니하고 너희를 떠나지 아니하리라","히브리서 13:5"],
+  ["예수 그리스도는 어제나 오늘이나 영원토록 동일하시니라","히브리서 13:8"],
+  ["지혜가 부족하거든 모든 사람에게 후히 주시는 하나님께 구하라","야고보서 1:5"],
+  ["하나님은 사랑이시라 사랑 안에 거하는 자는 하나님 안에 거하고","요한일서 4:16"],
+  ["네 영혼이 잘됨 같이 네가 범사에 잘되고 강건하기를 내가 간구하노라","요한삼서 1:2"],
+  ["할렐루야 여호와를 찬양함이 선함이여 찬송함이 아름답고 마땅하도다","시편 147:1"],
 ];
 let verseIdx = Math.floor(Math.random()*VERSES.length);
 
@@ -286,6 +350,8 @@ const cfg = {
   set energy(v){ store.set('om_energy', v); },
   get bright(){ return parseInt(store.get('om_bright')||'15'); },
   set bright(v){ store.set('om_bright', v); },
+  get sharp(){ return parseInt(store.get('om_sharp')||'6'); },
+  set sharp(v){ store.set('om_sharp', v); },
 };
 
 /* ================= 카드 합성 ================= */
@@ -343,6 +409,33 @@ function autoEnhance(c, brightOffset){
   x.putImageData(img,0,0);
 }
 
+/* 언샤프 마스크: 흐린 버전과의 차이를 증폭해 윤곽을 선명하게 (디더링 인쇄에 특히 효과적) */
+function sharpen(c, amount){
+  if(amount <= 0) return;
+  const x = c.getContext('2d');
+  const img = x.getImageData(0,0,c.width,c.height);
+  const d = img.data, w = c.width, h = c.height, n = w*h;
+  const g = new Float32Array(n);
+  for(let i=0;i<n;i++) g[i] = d[i*4];
+  const blur = src=>{
+    const out = new Float32Array(n);
+    for(let y=0;y<h;y++) for(let xx=0;xx<w;xx++){
+      let s=0, cnt=0;
+      for(let dy=-1;dy<=1;dy++){ const yy=y+dy; if(yy<0||yy>=h) continue;
+        for(let dx=-1;dx<=1;dx++){ const xw=xx+dx; if(xw<0||xw>=w) continue; s+=src[yy*w+xw]; cnt++; } }
+      out[y*w+xx] = s/cnt;
+    }
+    return out;
+  };
+  const b = blur(blur(g));
+  for(let i=0;i<n;i++){
+    let v = g[i] + (g[i]-b[i])*amount;
+    v = v<0?0 : v>255?255 : v;
+    d[i*4]=d[i*4+1]=d[i*4+2]=v;
+  }
+  x.putImageData(img,0,0);
+}
+
 function wrapText(ctx, text, maxW){
   const words = text.split(' ');
   const lines = []; let line = '';
@@ -393,6 +486,7 @@ function buildCard(){
     pc.width = W; pc.height = photoH;
     pc.getContext('2d').drawImage(photoBitmap, sx,sy,sw,sh, 0,0, W, photoH);
     autoEnhance(pc, cfg.bright);          // 어두운 사진일수록 강하게 밝힘
+    sharpen(pc, cfg.sharp/10*1.6);        // 윤곽 선명화
     ctx.drawImage(pc, 0, y);
     ctx.strokeStyle='#000'; ctx.lineWidth=2; ctx.strokeRect(1,y+1,W-2,photoH-2);
     y += photoH + 14;
@@ -850,6 +944,7 @@ function syncSettings(){
   $('footerText').value = cfg.footer;
   $('energy').value = cfg.energy; $('energyVal').textContent = cfg.energy + ' / 10';
   $('bright').value = cfg.bright; $('brightVal').textContent = (cfg.bright>0?'+':'')+cfg.bright;
+  $('sharp').value = cfg.sharp; $('sharpVal').textContent = cfg.sharp + ' / 10';
 }
 $('gearBtn').onclick = ()=>{ syncSettings(); $('modalBg').classList.add('show'); };
 $('modalBg').onclick = e=>{ if(e.target===$('modalBg')) $('modalBg').classList.remove('show'); };
@@ -858,6 +953,7 @@ $('churchName').onchange = e=>{ cfg.church = e.target.value.trim() || '평해감
 $('footerText').onchange = e=>{ cfg.footer = e.target.value.trim() || '온마음 · 예수님이 사랑하십니다'; };
 $('energy').oninput = e=>{ cfg.energy = e.target.value; $('energyVal').textContent = e.target.value+' / 10'; };
 $('bright').oninput = e=>{ cfg.bright = e.target.value; $('brightVal').textContent = (e.target.value>0?'+':'')+e.target.value; };
+$('sharp').oninput = e=>{ cfg.sharp = e.target.value; $('sharpVal').textContent = e.target.value+' / 10'; };
 </script>
 </body>
 </html>
