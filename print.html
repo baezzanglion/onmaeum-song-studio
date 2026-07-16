@@ -194,6 +194,7 @@
 <div class="cam-view" id="camView">
   <video id="camVideo" autoplay playsinline muted></video>
   <div class="cam-count" id="camCount">3</div>
+  <div style="color:rgba(255,255,255,.85);font-size:.85rem;padding-top:10px;font-family:'Gowun Batang',serif">💡 밝은 쪽(창문·조명)을 바라보면 얼굴이 환하게 나와요</div>
   <div class="cam-controls">
     <button class="cam-side" id="camClose" aria-label="닫기">✕</button>
     <button class="cam-side" id="camTimer" aria-label="타이머">⏱</button>
@@ -289,6 +290,44 @@ async function loadPhoto(file){
   }
 }
 
+/* 히스토그램 기반 자동 명암 보정:
+   - 2%~98% 퍼센타일을 0~255로 스트레치 (역광의 극단 명암 완화)
+   - 사진의 중앙 밝기가 어두울수록 감마를 강하게 걸어 얼굴 톤을 끌어올림 */
+function autoEnhance(c, brightOffset){
+  const x = c.getContext('2d');
+  const img = x.getImageData(0,0,c.width,c.height);
+  const d = img.data;
+  const n = c.width*c.height;
+  const hist = new Uint32Array(256);
+  const lum = new Float32Array(n);
+  for(let i=0;i<n;i++){
+    const l = 0.299*d[i*4] + 0.587*d[i*4+1] + 0.114*d[i*4+2];
+    lum[i] = l; hist[l|0]++;
+  }
+  let acc=0, lo=0, hi=255;
+  for(let v=0;v<256;v++){ acc+=hist[v]; if(acc>=n*0.02){ lo=v; break; } }
+  acc=0;
+  for(let v=255;v>=0;v--){ acc+=hist[v]; if(acc>=n*0.02){ hi=v; break; } }
+  if(hi-lo<10){ lo=0; hi=255; }
+  acc=0; let med=128;
+  for(let v=0;v<256;v++){ acc+=hist[v]; if(acc>=n/2){ med=v; break; } }
+  const medN = Math.max(0.02, Math.min(0.98, (med-lo)/(hi-lo)));
+  let gamma = Math.log(0.5)/Math.log(medN);  // 중앙 밝기를 중간톤으로 보내는 감마
+  gamma = Math.max(0.45, Math.min(1.15, gamma));
+  const off = brightOffset||0;
+  const lut = new Uint8Array(256);
+  for(let v=0;v<256;v++){
+    let t = (v-lo)/(hi-lo); t = Math.max(0, Math.min(1, t));
+    t = Math.pow(t, gamma);
+    lut[v] = Math.max(0, Math.min(255, (t*255+off)|0));
+  }
+  for(let i=0;i<n;i++){
+    const g = lut[lum[i]|0];
+    d[i*4]=d[i*4+1]=d[i*4+2]=g;
+  }
+  x.putImageData(img,0,0);
+}
+
 function wrapText(ctx, text, maxW){
   const words = text.split(' ');
   const lines = []; let line = '';
@@ -327,20 +366,19 @@ function buildCard(){
   const d = new Date();
   ctx.fillText(`${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일`, W/2, y+14); y += 18;
 
-  // 사진 (밝기 보정 포함)
+  // 사진 (자동 명암 보정)
   if(photoBitmap){
     y += 8;
-    ctx.save();
-    ctx.filter = `brightness(${100+cfg.bright}%) contrast(115%) grayscale(100%)`;
-    // 중앙 크롭
     const srcRatio = photoBitmap.width/photoBitmap.height;
     const dstRatio = W/photoH;
     let sx=0, sy=0, sw=photoBitmap.width, sh=photoBitmap.height;
     if(srcRatio > dstRatio){ sw = sh*dstRatio; sx = (photoBitmap.width-sw)/2; }
     else { sh = sw/dstRatio; sy = (photoBitmap.height-sh)/2; }
-    ctx.drawImage(photoBitmap, sx,sy,sw,sh, 0,y, W, photoH);
-    ctx.restore();
-    // 사진 테두리
+    const pc = document.createElement('canvas');
+    pc.width = W; pc.height = photoH;
+    pc.getContext('2d').drawImage(photoBitmap, sx,sy,sw,sh, 0,0, W, photoH);
+    autoEnhance(pc, cfg.bright);          // 어두운 사진일수록 강하게 밝힘
+    ctx.drawImage(pc, 0, y);
     ctx.strokeStyle='#000'; ctx.lineWidth=2; ctx.strokeRect(1,y+1,W-2,photoH-2);
     y += photoH + 14;
   }
