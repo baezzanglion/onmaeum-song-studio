@@ -175,13 +175,11 @@
       <button class="btn" id="savePng">이미지로 저장</button>
       <button class="btn warm" id="printBtn">🖨 인쇄하기</button>
     </div>
-    <button class="btn ghost" id="printBtnB">🖨 방식 B로 인쇄 (기본 방식이 안 될 때)</button>
 
     <div class="progress" id="prog">
       <span id="progText">인쇄 중…</span>
       <div class="bar"><i id="progBar"></i></div>
     </div>
-    <div class="dbg" id="dbg"></div>
   </div>
 
   <div class="notice" id="mainNotice">
@@ -222,6 +220,9 @@
     <p>선명도를 올리면 얼굴 윤곽이 또렷해져요. 너무 올리면 배경이 거칠어질 수 있어요.</p>
     <button class="btn" id="testPrint">프린터 테스트 인쇄</button>
     <button class="btn ghost" id="feedTest">용지 이송 테스트 (진단용)</button>
+    <button class="btn ghost" id="printBtnB">방식 B로 인쇄 (진단용)</button>
+    <button class="btn ghost" id="dbgToggle">진단 로그 보기</button>
+    <div class="dbg" id="dbg"></div>
     <button class="btn ghost" id="closeSettings">닫기</button>
   </div>
 </div>
@@ -706,7 +707,6 @@ let btDevice = null, btChar = null, btData = null, btNotify = null;
 
 function log(msg){
   const d = $('dbg');
-  d.style.display = 'block';
   const t = new Date().toTimeString().slice(0,8);
   d.textContent += `[${t}] ${msg}\n`;
   d.scrollTop = d.scrollHeight;
@@ -856,7 +856,7 @@ async function doPrint(bits, h){
   try{
     await sendAll(job, p=>{ $('progBar').style.width = Math.round(p*100)+'%'; });
     log('방식 A 전송 완료 ('+job.length+' bytes)');
-    $('progText').textContent = '전송 완료! 종이가 안 나오면 [방식 B로 인쇄]를 눌러 보세요';
+    $('progText').textContent = '인쇄 완료! ✂ 살짝 위쪽에서 잘라 드리세요';
     setTimeout(()=>{ $('prog').style.display='none'; $('progBar').style.width='0%'; }, 6000);
   }catch(e){
     $('prog').style.display='none';
@@ -904,7 +904,17 @@ function showErr(msg){
 }
 
 $('printBtn').onclick = ()=>{ if(lastBits) doPrint(lastBits, lastH); };
-$('printBtnB').onclick = ()=>{ if(lastBits) doPrintB(lastBits, lastH); };
+$('printBtnB').onclick = ()=>{
+  $('modalBg').classList.remove('show');
+  if(lastBits) doPrintB(lastBits, lastH);
+};
+$('dbgToggle').onclick = ()=>{
+  const d = $('dbg');
+  const show = d.style.display !== 'block';
+  d.style.display = show ? 'block' : 'none';
+  $('dbgToggle').textContent = show ? '진단 로그 숨기기' : '진단 로그 보기';
+  if(show) d.scrollTop = d.scrollHeight;
+};
 
 /* 용지 이송 테스트: 최소 명령만 보내 기계 반응 확인 (프로토콜 진단의 핵심) */
 $('feedTest').onclick = async ()=>{
