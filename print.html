@@ -372,47 +372,58 @@ async function loadPhoto(file){
   }
 }
 
-/* 히스토그램 기반 자동 명암 보정:
-   - 2%~98% 퍼센타일을 0~255로 스트레치 (역광의 극단 명암 완화)
-   - 사진의 중앙 밝기가 어두울수록 감마를 강하게 걸어 얼굴 톤을 끌어올림 */
+/* 자동 명암 보정 v3 (지역 적응):
+   1) 2%~98% 퍼센타일 전역 스트레치
+   2) 저해상 조명 맵을 만들어, 어두운 "구역"만 감마로 끌어올림 (밝은 벽·조명은 유지)
+   → 인물이 어디에 있든, 배경이 얼마나 밝든 얼굴이 살아남 */
 function autoEnhance(c, brightOffset){
-  const x = c.getContext('2d');
-  const img = x.getImageData(0,0,c.width,c.height);
+  const ctx = c.getContext('2d');
+  const img = ctx.getImageData(0,0,c.width,c.height);
   const d = img.data;
-  const n = c.width*c.height;
+  const w = c.width, h = c.height, n = w*h;
+  const g = new Float32Array(n);
   const hist = new Uint32Array(256);
-  const lum = new Float32Array(n);
   for(let i=0;i<n;i++){
     const l = 0.299*d[i*4] + 0.587*d[i*4+1] + 0.114*d[i*4+2];
-    lum[i] = l; hist[l|0]++;
+    g[i] = l; hist[l|0]++;
   }
+  // 1) 전역 스트레치
   let acc=0, lo=0, hi=255;
   for(let v=0;v<256;v++){ acc+=hist[v]; if(acc>=n*0.02){ lo=v; break; } }
   acc=0;
   for(let v=255;v>=0;v--){ acc+=hist[v]; if(acc>=n*0.02){ hi=v; break; } }
   if(hi-lo<10){ lo=0; hi=255; }
-  // 감마 판단은 화면 전체가 아니라 "중앙 60% 영역(얼굴 위치)" 기준 — 밝은 벽/천장에 속지 않도록
-  const w=c.width, hh=c.height;
-  const x0=(w*0.2)|0, x1=(w*0.8)|0, y0=(hh*0.2)|0, y1=(hh*0.8)|0;
-  const chist = new Uint32Array(256); let cn=0;
-  for(let yy=y0;yy<y1;yy++) for(let xx=x0;xx<x1;xx++){ chist[lum[yy*w+xx]|0]++; cn++; }
-  acc=0; let med=128;
-  for(let v=0;v<256;v++){ acc+=chist[v]; if(acc>=cn/2){ med=v; break; } }
-  const medN = Math.max(0.02, Math.min(0.98, (med-lo)/(hi-lo)));
-  let gamma = Math.log(0.5)/Math.log(medN);  // 중앙(얼굴) 밝기를 중간톤으로 보내는 감마
-  gamma = Math.max(0.40, Math.min(1.15, gamma));
+  const span = hi-lo;
+  for(let i=0;i<n;i++){ let t=(g[i]-lo)/span; g[i] = t<0?0 : t>1?1 : t; }
+  // 2) 조명 맵: 1/8 축소 → 박스 블러 2회
+  const sw = Math.max(8, (w/8)|0), sh = Math.max(8, (h/8)|0);
+  let small = new Float32Array(sw*sh);
+  for(let y=0;y<sh;y++) for(let x=0;x<sw;x++){
+    small[y*sw+x] = g[(((y+0.5)*h/sh)|0)*w + (((x+0.5)*w/sw)|0)];
+  }
+  const blurS = src=>{
+    const out = new Float32Array(sw*sh);
+    for(let y=0;y<sh;y++) for(let x=0;x<sw;x++){
+      let s=0, cnt=0;
+      for(let dy=-2;dy<=2;dy++){ const yy=y+dy; if(yy<0||yy>=sh) continue;
+        for(let dx=-2;dx<=2;dx++){ const xx=x+dx; if(xx<0||xx>=sw) continue; s+=src[yy*sw+xx]; cnt++; } }
+      out[y*sw+x] = s/cnt;
+    }
+    return out;
+  };
+  const L = blurS(blurS(small));
+  // 3) 지역 적응 감마: 어두운 구역일수록 강하게 밝힘 (밝은 구역은 감마 1 = 유지)
   const off = brightOffset||0;
-  const lut = new Uint8Array(256);
-  for(let v=0;v<256;v++){
-    let t = (v-lo)/(hi-lo); t = Math.max(0, Math.min(1, t));
-    t = Math.pow(t, gamma);
-    lut[v] = Math.max(0, Math.min(255, (t*255+off)|0));
-  }
   for(let i=0;i<n;i++){
-    const g = lut[lum[i]|0];
-    d[i*4]=d[i*4+1]=d[i*4+2]=g;
+    const x = i%w, y = (i/w)|0;
+    const Ln = Math.max(0.05, Math.min(0.95, L[((y*sh/h)|0)*sw + ((x*sw/w)|0)]));
+    let lg = Math.log(0.5)/Math.log(Ln);
+    lg = Math.max(0.45, Math.min(1.0, lg));
+    let out = Math.pow(g[i], lg)*255 + off;
+    out = out<0?0 : out>255?255 : out;
+    d[i*4]=d[i*4+1]=d[i*4+2]=out;
   }
-  x.putImageData(img,0,0);
+  ctx.putImageData(img,0,0);
 }
 
 /* 언샤프 마스크: 흐린 버전과의 차이를 증폭해 윤곽을 선명하게 (디더링 인쇄에 특히 효과적) */
