@@ -43,6 +43,12 @@
     background:var(--card);font-family:'Gowun Batang',serif;font-size:1.15rem;color:var(--ink);
   }
   input:focus{outline:2px solid var(--sea);border-color:transparent}
+  .manual-input{
+    width:100%;padding:12px 15px;margin-top:4px;border:1.5px solid var(--line);border-radius:12px;
+    background:var(--card);font-family:'Gowun Batang',serif;font-size:1.1rem;color:var(--ink);
+    resize:vertical;line-height:1.5;
+  }
+  .manual-input:focus{outline:2px solid var(--sea);border-color:transparent}
   .chips{display:flex;gap:8px;margin-top:4px}
   .chip{
     padding:9px 16px;border-radius:20px;border:1.5px solid var(--line);background:var(--card);
@@ -222,6 +228,13 @@
 
   <label>성함 <span style="font-weight:400;opacity:.7">— 호칭까지 적으면 그대로 인쇄돼요</span></label>
   <input type="text" id="elderName" placeholder="예) 박종배 형제님, 박하늘 자매님" autocomplete="off">
+
+  <label>내용</label>
+  <div class="chips" id="contentModeChips" style="margin-bottom:4px">
+    <button class="chip sel" data-mode="random">🍀 말씀 (랜덤)</button>
+    <button class="chip" data-mode="manual">🙏 기도제목 직접</button>
+  </div>
+  <textarea id="manualInput" class="manual-input" rows="2" placeholder="함께 기도할 제목을 적어주세요 (예: 건강, 가정의 평화)" style="display:none"></textarea>
 
   <label>카메라</label>
   <div class="chips" id="facingChips" style="margin-bottom:4px">
@@ -651,6 +664,9 @@ function buildCard(mode){
   const S = isColor ? 3 : 1;
   const CW = W * S;
   const [verse, ref] = VERSES[verseIdx];
+  const manual = manualMode && manualText.trim();          // 직접 적기(기도제목) 모드
+  const bodyText = manual ? manualText.trim() : verse;
+  const bodyRef  = manual ? '🙏 기도제목' : ('— ' + ref + ' —');
   const name = $('elderName').value.trim();
   const c = document.createElement('canvas');
   const ctx = c.getContext('2d');
@@ -658,7 +674,7 @@ function buildCard(mode){
   // --- 높이 계산을 위한 가측정 ---
   const photoH = photoBitmap ? Math.round(CW * Math.min(1.15, photoBitmap.height/photoBitmap.width)) : 0;
   ctx.font = `700 ${30*S}px "Gowun Batang", serif`;
-  const verseLines = wrapText(ctx, verse, CW-56*S);
+  const verseLines = wrapText(ctx, bodyText, CW-56*S);
   const nameBlock = name ? 74*S : 0;
   const H = (8+34+18)*S + photoH + 14*S + nameBlock + 20*S + verseLines.length*44*S + (34+22+40+44)*S;
   c.width = CW; c.height = H;
@@ -727,7 +743,7 @@ function buildCard(mode){
   y += 34*S;
   ctx.font = `${20*S}px "Gowun Batang", serif`;
   ctx.fillStyle = isColor ? '#6B6152' : '#000';
-  ctx.fillText('— ' + ref + ' —', CW/2, y); y += 22*S;
+  ctx.fillText(bodyRef, CW/2, y); y += 22*S;
 
   // 하단 문구
   ctx.font = `${22*S}px "Gaegu", cursive`;
@@ -847,12 +863,14 @@ function ditherCanvas(src){
 let lastBits = null, lastH = 0;
 let savedThisCard = false;   // 현재 카드가 갤러리에 이미 저장됐는지 (인쇄·공유 중복 방지)
 let previewReady = false;    // 미리보기 카드가 준비됐는지 (사진 없이 만든 카드 포함)
+let manualMode = false;      // 내용: false=랜덤 말씀 / true=직접 기도제목
+let manualText = '';         // 직접 적은 기도제목
 
 /* 실제 그릴 문장을 넘겨 해당 글자의 폰트 조각까지 확실히 로드 (한글 서브셋 깨짐 방지) */
 async function loadCardFonts(){
   const [v, r] = VERSES[verseIdx];
   const d = new Date();
-  const batangText = v + ' — ' + r + ' — ' + `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 0123456789`;
+  const batangText = (manualText||'') + ' ' + v + ' — ' + r + ' — ' + `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 0123456789`;
   const gaeguText = cfg.church + ' ' + cfg.footer + ' ' + ($('elderName').value.trim()||'') + ' 온마음 테스트 인쇄 진하기';
   try{
     await Promise.all([
@@ -888,7 +906,7 @@ async function renderPreview(){
     pc.getContext('2d').drawImage(card,0,0);
   }
   const [v,r] = VERSES[verseIdx];
-  $('verseTag').textContent = '🍀 오늘의 말씀: ' + r;
+  $('verseTag').textContent = (manualMode && manualText.trim()) ? '🙏 기도제목 카드' : ('🍀 오늘의 말씀: ' + r);
   $('previewArea').style.display = 'block';
   savedThisCard = false;   // 새 카드 → 아직 미저장 상태
   previewReady = true;
@@ -964,6 +982,30 @@ $('noPhotoBtn').onclick = async ()=>{
   await renderPreview();
   window.scrollTo({top:document.body.scrollHeight, behavior:'smooth'});
 };
+
+/* 내용 모드: 랜덤 말씀 ↔ 직접 기도제목 */
+function syncContentMode(){
+  document.querySelectorAll('#contentModeChips .chip').forEach(c=>
+    c.classList.toggle('sel', (c.dataset.mode==='manual')===manualMode));
+  $('manualInput').style.display = manualMode ? 'block' : 'none';
+  $('rerollVerse').style.display = manualMode ? 'none' : '';
+}
+document.querySelectorAll('#contentModeChips .chip').forEach(c=>{
+  c.onclick = async ()=>{
+    manualMode = (c.dataset.mode==='manual');
+    syncContentMode();
+    if(manualMode) $('manualInput').focus();
+    if(previewReady) await renderPreview();
+  };
+});
+let manualTimer = null;
+$('manualInput').oninput = e=>{
+  manualText = e.target.value;
+  if(!previewReady) return;
+  clearTimeout(manualTimer);
+  manualTimer = setTimeout(()=>renderPreview(), 350);   // 타이핑 멈추면 미리보기 갱신
+};
+syncContentMode();
 $('camClose').onclick = ()=>{ stopCam(); $('camView').classList.remove('show'); };
 $('camFlip').onclick = ()=>{
   facing = (facing==='user') ? 'environment' : 'user';
