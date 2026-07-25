@@ -111,6 +111,17 @@
   .row .btn{flex:1}
 
   .preview-area{display:none;margin-top:20px}
+  .view-tabs{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+  .vtab{
+    flex:1;padding:11px 8px;border-radius:12px;border:1.5px solid var(--line);background:var(--card);
+    font-family:'Gaegu',cursive;font-size:1.1rem;color:var(--ink-soft);cursor:pointer;transition:.15s;
+  }
+  .vtab.on{background:var(--sea);border-color:var(--sea);color:#fff}
+  .pretty-toggle{
+    padding:11px 16px;border-radius:12px;border:1.5px solid var(--line);background:var(--card);
+    font-family:'Gaegu',cursive;font-size:1.1rem;color:var(--ink-soft);cursor:pointer;transition:.15s;
+  }
+  .pretty-toggle.on{background:var(--persimmon);border-color:var(--persimmon);color:#fff}
   .preview-frame{
     background:var(--card);border:1.5px solid var(--line);border-radius:16px;padding:18px;
     display:flex;justify-content:center;box-shadow:0 4px 16px rgba(43,38,32,.08);
@@ -145,15 +156,65 @@
     padding:10px 12px;font-family:monospace;font-size:.7rem;line-height:1.55;
     max-height:180px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;
   }
+
+  /* ---- 갤러리 ---- */
+  .gear{position:relative}
+  .gal-badge{
+    position:absolute;top:-2px;right:-4px;min-width:16px;height:16px;padding:0 4px;
+    border-radius:9px;background:var(--persimmon);color:#fff;font-family:'Gaegu',cursive;
+    font-size:.62rem;line-height:16px;text-align:center;display:none;
+  }
+  .gal-badge.show{display:block}
+  .gallery-view{
+    position:fixed;inset:0;background:var(--paper);z-index:120;display:none;flex-direction:column;
+  }
+  .gallery-view.show{display:flex}
+  .gallery-head{
+    display:flex;align-items:center;justify-content:space-between;padding:16px 18px 12px;
+    border-bottom:1px solid var(--line);
+  }
+  .gallery-head .gtitle{font-family:'Gaegu',cursive;font-size:1.35rem;color:var(--sea-deep);font-weight:700}
+  .gallery-head .gtitle small{display:block;font-size:.8rem;color:var(--ink-soft);font-weight:400;margin-top:2px}
+  .gallery-head button{border:none;background:none;font-size:1.4rem;cursor:pointer;color:var(--ink-soft);padding:6px}
+  .gallery-grid{
+    flex:1;overflow-y:auto;padding:16px;display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:14px;align-content:start;
+  }
+  .gcard{
+    background:var(--card);border:1.5px solid var(--line);border-radius:12px;overflow:hidden;
+    cursor:pointer;box-shadow:0 3px 10px rgba(43,38,32,.07);
+  }
+  .gcard img{width:100%;display:block;background:#fff}
+  .gcard .cap{
+    padding:7px 9px;font-family:'Gowun Batang',serif;font-size:.72rem;color:var(--ink-soft);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .gallery-empty{
+    flex:1;display:none;align-items:center;justify-content:center;text-align:center;
+    font-family:'Gowun Batang',serif;color:var(--ink-soft);font-size:.95rem;line-height:1.7;padding:40px;
+  }
+  .gallery-empty.show{display:flex}
+  /* 확대 보기 */
+  .gzoom{position:fixed;inset:0;background:rgba(43,38,32,.82);z-index:130;display:none;
+    flex-direction:column;align-items:center;justify-content:center;padding:20px}
+  .gzoom.show{display:flex}
+  .gzoom img{max-width:92vw;max-height:64vh;border-radius:8px;background:#fff;box-shadow:0 8px 30px rgba(0,0,0,.4)}
+  .gzoom .gz-row{display:flex;gap:10px;margin-top:16px;width:min(92vw,420px)}
+  .gzoom .gz-row .btn{flex:1;margin-top:0}
+  .gz-del{background:none;border:none;color:rgba(255,255,255,.8);font-family:'Gowun Batang',serif;
+    font-size:.85rem;text-decoration:underline;cursor:pointer;margin-top:14px}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
     <div class="brand">온마음 <small>말씀 사진관</small></div>
-    <button class="gear" id="gearBtn" aria-label="설정">⚙</button>
+    <div style="display:flex;gap:2px">
+      <button class="gear" id="galleryBtn" aria-label="갤러리">🖼<span class="gal-badge" id="galBadge"></span></button>
+      <button class="gear" id="gearBtn" aria-label="설정">⚙</button>
+    </div>
   </header>
-  <div class="sub">교회에 오신 날, 사진과 말씀을 한 장에 — 평해감리교회 <span style="color:var(--persimmon);font-family:'Gaegu',cursive">· v2 확대 촬영판</span></div>
+  <div class="sub">교회에 오신 날, 사진과 말씀을 한 장에 — 평해감리교회 <span style="color:var(--persimmon);font-family:'Gaegu',cursive">· v3.1 컬러·갤러리</span></div>
 
   <div class="status" id="prStatus"><span class="dot"></span><span id="prStatusText">프린터 연결 안 됨 (이미지 저장은 가능)</span></div>
 
@@ -173,6 +234,12 @@
   <input type="file" id="camInput" accept="image/*" capture="user" style="display:none">
 
   <div class="preview-area" id="previewArea">
+    <div class="view-tabs">
+      <button class="vtab on" data-m="print" id="tabPrint">🖨 인쇄 미리보기</button>
+      <button class="vtab" data-m="color" id="tabColor">🎨 컬러 카드</button>
+      <button class="pretty-toggle" id="prettyBtn">✨ 곱게</button>
+      <button class="pretty-toggle" id="fxBtn">🎉 효과</button>
+    </div>
     <div class="preview-frame"><canvas id="previewCanvas"></canvas></div>
     <div class="verse-tag" id="verseTag"></div>
 
@@ -181,7 +248,7 @@
       <button class="btn ghost" id="retake">다시 찍기</button>
     </div>
     <div class="row">
-      <button class="btn" id="savePng">이미지로 저장</button>
+      <button class="btn" id="savePng">📤 공유/저장</button>
       <button class="btn warm" id="printBtn">🖨 인쇄하기</button>
     </div>
 
@@ -239,6 +306,26 @@
     <div class="dbg" id="dbg"></div>
     <button class="btn ghost" id="closeSettings">닫기</button>
   </div>
+</div>
+
+<!-- 갤러리 -->
+<div class="gallery-view" id="galleryView">
+  <div class="gallery-head">
+    <div class="gtitle">🖼 갤러리<small id="galSub"></small></div>
+    <button id="galleryClose" aria-label="닫기">✕</button>
+  </div>
+  <div class="gallery-grid" id="galleryGrid"></div>
+  <div class="gallery-empty" id="galleryEmpty">
+    아직 저장된 카드가 없어요.<br>사진을 찍고 <b>인쇄</b>하거나 <b>공유/저장</b>하면<br>여기 이 기기에 차곡차곡 모여요 🧡
+  </div>
+</div>
+<div class="gzoom" id="gzoom">
+  <img id="gzoomImg" alt="">
+  <div class="gz-row">
+    <button class="btn ghost" id="gzShare">📤 공유/저장</button>
+    <button class="btn" id="gzClose">닫기</button>
+  </div>
+  <button class="gz-del" id="gzDel">이 카드 삭제</button>
 </div>
 
 <script>
@@ -479,73 +566,243 @@ function wrapText(ctx, text, maxW){
   return lines;
 }
 
-function buildCard(){
+/* ---------- 🎉 사진 효과 (꽃가루/반짝이/꽃잎) ----------
+   - 시드 고정: 같은 사진이면 컬러/인쇄 탭에서 같은 배치 (확인 후 인쇄해도 동일)
+   - 인쇄(흑백) 모드: 개수 절반 + 외곽선 위주로 그려 얼굴을 가리지 않게 */
+let effectMode = 0; // 0 없음, 1 꽃가루, 2 반짝이, 3 꽃잎
+let effectSeed = 12345;
+const FX_LABELS = ['🎉 효과','🎊 꽃가루','✨ 반짝이','🌸 꽃잎'];
+
+function drawEffect(ctx, x0, y0, w, h, S, isColor){
+  if(!effectMode) return;
+  let s = effectSeed>>>0;
+  const rand = ()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; };
+  ctx.save();
+  ctx.beginPath(); ctx.rect(x0,y0,w,h); ctx.clip();
+
+  if(effectMode===1){ /* 꽃가루: 위쪽 60%에 흩날림 */
+    const colors=['#E85D75','#F2A950','#3FA7A0','#7D6BC2','#E8C547','#C96A3B'];
+    const n = isColor ? 44 : 20;
+    for(let i=0;i<n;i++){
+      const px=x0+rand()*w, py=y0+rand()*h*0.6;
+      const sz=(5+rand()*6)*S, rot=rand()*Math.PI;
+      ctx.save(); ctx.translate(px,py); ctx.rotate(rot);
+      if(isColor){
+        ctx.globalAlpha=.92;
+        ctx.fillStyle=colors[(rand()*colors.length)|0];
+        ctx.fillRect(-sz/2,-sz/4,sz,sz/2);
+      }else{
+        ctx.lineWidth=Math.max(1,S);
+        if(rand()<.55){ ctx.strokeStyle='#000'; ctx.strokeRect(-sz/2,-sz/4,sz,sz/2); }
+        else{ ctx.fillStyle='#000'; ctx.fillRect(-sz/2,-sz/4,sz,sz/2); }
+      }
+      ctx.restore();
+    }
+  }else if(effectMode===2){ /* 반짝이: 십자 별 */
+    const n = isColor ? 26 : 13;
+    for(let i=0;i<n;i++){
+      const px=x0+rand()*w, py=y0+rand()*h;
+      const r=(4+rand()*7)*S;
+      ctx.save(); ctx.translate(px,py);
+      if(isColor){
+        ctx.strokeStyle = rand()<.5 ? '#FFE9A8' : '#FFFFFF';
+        ctx.shadowColor='#FFD97A'; ctx.shadowBlur=6*S;
+      }else{
+        ctx.strokeStyle='#000';
+      }
+      ctx.lineWidth=1.7*S; ctx.lineCap='round';
+      ctx.beginPath();
+      ctx.moveTo(-r,0); ctx.lineTo(r,0);
+      ctx.moveTo(0,-r); ctx.lineTo(0,r);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }else{ /* 꽃잎: 좌우 가장자리 중심으로 */
+    const n = isColor ? 22 : 11;
+    for(let i=0;i<n;i++){
+      const edge = rand()<.5;
+      const px = x0 + (edge ? rand()*w*0.28 : w - rand()*w*0.28);
+      const py = y0 + rand()*h;
+      const rx=(5+rand()*5)*S, ry=rx*0.55, rot=rand()*Math.PI;
+      ctx.save(); ctx.translate(px,py); ctx.rotate(rot);
+      ctx.beginPath(); ctx.ellipse(0,0,rx,ry,0,0,Math.PI*2);
+      if(isColor){
+        ctx.globalAlpha=.85;
+        ctx.fillStyle = rand()<.5 ? '#F3A6B8' : '#F7C8D3';
+        ctx.fill();
+      }else{
+        ctx.lineWidth=Math.max(1,S);
+        ctx.strokeStyle='#000';
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+  ctx.restore();
+}
+
+function buildCard(mode){
+  // mode: 'print' (384px 흑백, 기본) | 'color' (3배 해상도 컬러 카드)
+  const isColor = mode === 'color';
+  const S = isColor ? 3 : 1;
+  const CW = W * S;
   const [verse, ref] = VERSES[verseIdx];
   const name = $('elderName').value.trim();
   const c = document.createElement('canvas');
   const ctx = c.getContext('2d');
 
   // --- 높이 계산을 위한 가측정 ---
-  const photoH = photoBitmap ? Math.round(W * Math.min(1.15, photoBitmap.height/photoBitmap.width)) : 0;
-  ctx.font = '700 30px "Gowun Batang", serif';
-  const verseLines = wrapText(ctx, verse, W-56);
-  const nameBlock = name ? 74 : 0;
-  const H = 8+34+18 + photoH + 14 + nameBlock + 20 + verseLines.length*44 + 34 + 22 + 40 + 44;
-  c.width = W; c.height = H;
+  const photoH = photoBitmap ? Math.round(CW * Math.min(1.15, photoBitmap.height/photoBitmap.width)) : 0;
+  ctx.font = `700 ${30*S}px "Gowun Batang", serif`;
+  const verseLines = wrapText(ctx, verse, CW-56*S);
+  const nameBlock = name ? 74*S : 0;
+  const H = (8+34+18)*S + photoH + 14*S + nameBlock + 20*S + verseLines.length*44*S + (34+22+40+44)*S;
+  c.width = CW; c.height = H;
 
   // --- 배경 ---
-  ctx.fillStyle = '#fff'; ctx.fillRect(0,0,W,H);
-  ctx.fillStyle = '#000'; ctx.textAlign = 'center';
-  let y = 8;
+  ctx.fillStyle = isColor ? '#FFFDF8' : '#fff';
+  ctx.fillRect(0,0,CW,H);
+  ctx.fillStyle = isColor ? '#2B2620' : '#000';
+  ctx.textAlign = 'center';
+  let y = 8*S;
 
   // 상단: 교회명 + 날짜
-  ctx.font = '700 26px "Gaegu", cursive';
-  ctx.fillText(cfg.church, W/2, y+24); y += 34;
-  ctx.font = '18px "Gowun Batang", serif';
+  ctx.font = `700 ${26*S}px "Gaegu", cursive`;
+  if(isColor) ctx.fillStyle = '#0F4844';
+  ctx.fillText(cfg.church, CW/2, y+24*S); y += 34*S;
+  ctx.fillStyle = isColor ? '#6B6152' : '#000';
+  ctx.font = `${18*S}px "Gowun Batang", serif`;
   const d = new Date();
-  ctx.fillText(`${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일`, W/2, y+14); y += 18;
+  ctx.fillText(`${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일`, CW/2, y+14*S); y += 18*S;
+  ctx.fillStyle = isColor ? '#2B2620' : '#000';
 
-  // 사진 (자동 명암 보정)
+  // 사진
   if(photoBitmap){
-    y += 8;
+    y += 8*S;
     const srcRatio = photoBitmap.width/photoBitmap.height;
-    const dstRatio = W/photoH;
+    const dstRatio = CW/photoH;
     let sx=0, sy=0, sw=photoBitmap.width, sh=photoBitmap.height;
     if(srcRatio > dstRatio){ sw = sh*dstRatio; sx = (photoBitmap.width-sw)/2; }
     else { sh = sw/dstRatio; sy = (photoBitmap.height-sh)/2; }
     const pc = document.createElement('canvas');
-    pc.width = W; pc.height = photoH;
-    pc.getContext('2d').drawImage(photoBitmap, sx,sy,sw,sh, 0,0, W, photoH);
-    autoEnhance(pc, cfg.bright);          // 어두운 사진일수록 강하게 밝힘
-    sharpen(pc, cfg.sharp/10*1.6);        // 윤곽 선명화
+    pc.width = CW; pc.height = photoH;
+    pc.getContext('2d').drawImage(photoBitmap, sx,sy,sw,sh, 0,0, CW, photoH);
+    if(prettyOn) smoothPhoto(pc);                 // ✨ 곱게: 피부결 부드럽게 + 톤 업
+    if(isColor){
+      colorEnhance(pc, cfg.bright);               // 색 유지한 채 어두운 영역만 밝힘 (약하게)
+    }else{
+      autoEnhance(pc, cfg.bright);                // 흑백 지역 적응 보정
+      sharpen(pc, (prettyOn ? 0.6 : 1) * cfg.sharp/10*1.6); // 곱게 켜면 선명화 완화
+    }
     ctx.drawImage(pc, 0, y);
-    ctx.strokeStyle='#000'; ctx.lineWidth=2; ctx.strokeRect(1,y+1,W-2,photoH-2);
-    y += photoH + 14;
+    drawEffect(ctx, 0, y, CW, photoH, S, isColor);   // 🎉 선택된 효과 (사진 영역에만)
+    ctx.strokeStyle = isColor ? '#D9CBB2' : '#000';
+    ctx.lineWidth = 2*S;
+    ctx.strokeRect(S, y+S, CW-2*S, photoH-2*S);
+    y += photoH + 14*S;
   }
 
-  // 성함 (입력한 호칭 그대로 표시)
+  // 성함
   if(name){
-    ctx.font = '700 44px "Gaegu", cursive';
-    ctx.fillText(name, W/2, y+44); y += 74;
+    ctx.font = `700 ${44*S}px "Gaegu", cursive`;
+    if(isColor) ctx.fillStyle = '#0F4844';
+    ctx.fillText(name, CW/2, y+44*S); y += 74*S;
+    ctx.fillStyle = isColor ? '#2B2620' : '#000';
   }
 
   // 구분선 (점선)
-  ctx.setLineDash([6,6]); ctx.beginPath();
-  ctx.moveTo(30,y); ctx.lineTo(W-30,y); ctx.stroke(); ctx.setLineDash([]);
-  y += 20;
+  ctx.strokeStyle = isColor ? '#C96A3B' : '#000';
+  ctx.lineWidth = S;
+  ctx.setLineDash([6*S,6*S]); ctx.beginPath();
+  ctx.moveTo(30*S,y); ctx.lineTo(CW-30*S,y); ctx.stroke(); ctx.setLineDash([]);
+  y += 20*S;
 
   // 말씀
-  ctx.font = '700 30px "Gowun Batang", serif';
-  for(const line of verseLines){ y += 44; ctx.fillText(line, W/2, y); }
-  y += 34;
-  ctx.font = '20px "Gowun Batang", serif';
-  ctx.fillText('— ' + ref + ' —', W/2, y); y += 22;
+  ctx.font = `700 ${30*S}px "Gowun Batang", serif`;
+  for(const line of verseLines){ y += 44*S; ctx.fillText(line, CW/2, y); }
+  y += 34*S;
+  ctx.font = `${20*S}px "Gowun Batang", serif`;
+  ctx.fillStyle = isColor ? '#6B6152' : '#000';
+  ctx.fillText('— ' + ref + ' —', CW/2, y); y += 22*S;
 
   // 하단 문구
-  ctx.font = '22px "Gaegu", cursive';
-  ctx.fillText(cfg.footer, W/2, y+26);
+  ctx.font = `${22*S}px "Gaegu", cursive`;
+  ctx.fillStyle = isColor ? '#A84F26' : '#000';
+  ctx.fillText(cfg.footer, CW/2, y+26*S);
 
   return c;
+}
+
+/* ✨ 곱게: 부드러운 블러를 섞어 피부결·주름을 완화하고 톤을 살짝 올림 (색 유지) */
+function smoothPhoto(c){
+  const x = c.getContext('2d');
+  const w = c.width, h = c.height;
+  const img = x.getImageData(0,0,w,h);
+  const d = img.data;
+  const blur = document.createElement('canvas');
+  blur.width = w; blur.height = h;
+  const bx = blur.getContext('2d');
+  bx.filter = `blur(${Math.max(2, Math.round(w/180))}px)`;
+  bx.drawImage(c, 0, 0);
+  const bd = bx.getImageData(0,0,w,h).data;
+  const MIX = 0.55, LIFT = 7;
+  for(let i=0;i<d.length;i+=4){
+    d[i]   = Math.min(255, d[i]  *(1-MIX) + bd[i]  *MIX + LIFT);
+    d[i+1] = Math.min(255, d[i+1]*(1-MIX) + bd[i+1]*MIX + LIFT);
+    d[i+2] = Math.min(255, d[i+2]*(1-MIX) + bd[i+2]*MIX + LIFT);
+  }
+  x.putImageData(img,0,0);
+}
+
+/* 컬러 유지 지역 적응 보정: 밝기 성분에만 보정을 걸고 색상 비율은 유지 (인쇄용보다 약하게) */
+function colorEnhance(c, brightOffset){
+  const ctx = c.getContext('2d');
+  const img = ctx.getImageData(0,0,c.width,c.height);
+  const d = img.data;
+  const w = c.width, h = c.height, n = w*h;
+  const g = new Float32Array(n);
+  const hist = new Uint32Array(256);
+  for(let i=0;i<n;i++){
+    const l = 0.299*d[i*4] + 0.587*d[i*4+1] + 0.114*d[i*4+2];
+    g[i] = l; hist[Math.min(255,l|0)]++;
+  }
+  let acc=0, lo=0, hi=255;
+  for(let v=0;v<256;v++){ acc+=hist[v]; if(acc>=n*0.02){ lo=v; break; } }
+  acc=0;
+  for(let v=255;v>=0;v--){ acc+=hist[v]; if(acc>=n*0.02){ hi=v; break; } }
+  if(hi-lo<10){ lo=0; hi=255; }
+  const span = hi-lo;
+  const t = new Float32Array(n);
+  for(let i=0;i<n;i++){ let v=(g[i]-lo)/span; t[i] = v<0.003?0.003 : v>1?1 : v; }
+  const sw = Math.max(8,(w/8)|0), sh = Math.max(8,(h/8)|0);
+  let small = new Float32Array(sw*sh);
+  for(let y=0;y<sh;y++) for(let x=0;x<sw;x++){
+    small[y*sw+x] = t[(((y+0.5)*h/sh)|0)*w + (((x+0.5)*w/sw)|0)];
+  }
+  const blurS = src=>{
+    const out = new Float32Array(sw*sh);
+    for(let y=0;y<sh;y++) for(let x=0;x<sw;x++){
+      let s=0, cnt=0;
+      for(let dy=-2;dy<=2;dy++){ const yy=y+dy; if(yy<0||yy>=sh) continue;
+        for(let dx=-2;dx<=2;dx++){ const xx=x+dx; if(xx<0||xx>=sw) continue; s+=src[yy*sw+xx]; cnt++; } }
+      out[y*sw+x] = s/cnt;
+    }
+    return out;
+  };
+  const L = blurS(blurS(small));
+  const off = (brightOffset||0)/255;
+  for(let i=0;i<n;i++){
+    const x = i%w, y = (i/w)|0;
+    const Ln = Math.max(0.06, Math.min(0.95, L[((y*sh/h)|0)*sw + ((x*sw/w)|0)]));
+    let lg = Math.log(0.5)/Math.log(Ln);
+    lg = Math.max(0.55, Math.min(1.0, lg));       // 컬러는 인쇄보다 완만하게
+    const enh = Math.min(1, Math.pow(t[i], lg)*0.85 + t[i]*0.15 + off);
+    const ratio = (enh*span+lo) / Math.max(1, g[i]);
+    d[i*4]   = Math.min(255, d[i*4]  *ratio);
+    d[i*4+1] = Math.min(255, d[i*4+1]*ratio);
+    d[i*4+2] = Math.min(255, d[i*4+2]*ratio);
+  }
+  ctx.putImageData(img,0,0);
 }
 
 /* --- 플로이드-스타인버그 디더링 (1비트) --- */
@@ -584,6 +841,7 @@ function ditherCanvas(src){
 }
 
 let lastBits = null, lastH = 0;
+let savedThisCard = false;   // 현재 카드가 갤러리에 이미 저장됐는지 (인쇄·공유 중복 방지)
 
 /* 실제 그릴 문장을 넘겨 해당 글자의 폰트 조각까지 확실히 로드 (한글 서브셋 깨짐 방지) */
 async function loadCardFonts(){
@@ -604,17 +862,41 @@ async function loadCardFonts(){
   }catch(e){}
 }
 
+let viewMode = 'print';   // 'print' | 'color'
+let prettyOn = store.get('om_pretty') === '1';
+let printBitsStale = true; // 인쇄용 디더링 재생성 필요 여부
+
 async function renderPreview(){
   await loadCardFonts();
-  const card = buildCard();
-  lastBits = ditherCanvas(card);
-  lastH = card.height;
   const pc = $('previewCanvas');
-  pc.width = card.width; pc.height = card.height;
-  pc.getContext('2d').drawImage(card,0,0);
+  if(viewMode === 'color'){
+    const card = buildCard('color');
+    pc.width = card.width; pc.height = card.height;
+    pc.getContext('2d').drawImage(card,0,0);
+    printBitsStale = true;
+  }else{
+    const card = buildCard('print');
+    lastBits = ditherCanvas(card);
+    lastH = card.height;
+    printBitsStale = false;
+    pc.width = card.width; pc.height = card.height;
+    pc.getContext('2d').drawImage(card,0,0);
+  }
   const [v,r] = VERSES[verseIdx];
   $('verseTag').textContent = '🍀 오늘의 말씀: ' + r;
   $('previewArea').style.display = 'block';
+  savedThisCard = false;   // 새 카드 → 아직 미저장 상태
+}
+
+/* 인쇄 직전: 컬러 탭 상태였다면 인쇄용 비트를 다시 생성 */
+async function ensurePrintBits(){
+  if(printBitsStale || !lastBits){
+    await loadCardFonts();
+    const card = buildCard('print');
+    lastBits = ditherCanvas(card);
+    lastH = card.height;
+    printBitsStale = false;
+  }
 }
 
 /* ================= 촬영 흐름 (페이지 내 카메라 우선) ================= */
@@ -708,6 +990,7 @@ async function captureFrame(){
   stopCam();
   $('camView').classList.remove('show');
   photoBitmap = c;
+  effectSeed = (Math.random()*1e9)|0;   // 새 사진 → 새 효과 배치 (탭 간에는 동일)
   verseIdx = Math.floor(Math.random()*VERSES.length);
   await renderPreview();
   window.scrollTo({top:document.body.scrollHeight, behavior:'smooth'});
@@ -734,6 +1017,7 @@ $('camInput').onchange = async e=>{
   const f = e.target.files[0];
   if(!f) return;
   await loadPhoto(f);
+  effectSeed = (Math.random()*1e9)|0;
   verseIdx = Math.floor(Math.random()*VERSES.length);
   await renderPreview();
   window.scrollTo({top:document.body.scrollHeight, behavior:'smooth'});
@@ -743,16 +1027,54 @@ $('rerollVerse').onclick = async ()=>{
   verseIdx = (verseIdx + 1 + Math.floor(Math.random()*(VERSES.length-1))) % VERSES.length;
   await renderPreview();
 };
-function saveCardPng(){
-  $('previewCanvas').toBlob(b=>{
+/* ---------- 탭 · 곱게 토글 ---------- */
+function syncTabs(){
+  document.querySelectorAll('.vtab').forEach(t=>t.classList.toggle('on', t.dataset.m===viewMode));
+  $('prettyBtn').classList.toggle('on', prettyOn);
+}
+$('tabPrint').onclick = async ()=>{ if(viewMode!=='print'){ viewMode='print'; syncTabs(); if(photoBitmap) await renderPreview(); } };
+$('tabColor').onclick = async ()=>{ if(viewMode!=='color'){ viewMode='color'; syncTabs(); if(photoBitmap) await renderPreview(); } };
+$('prettyBtn').onclick = async ()=>{
+  prettyOn = !prettyOn;
+  store.set('om_pretty', prettyOn ? '1' : '0');
+  syncTabs();
+  if(photoBitmap) await renderPreview();
+};
+$('fxBtn').onclick = async ()=>{
+  effectMode = (effectMode+1) % 4;
+  $('fxBtn').textContent = FX_LABELS[effectMode];
+  $('fxBtn').classList.toggle('on', effectMode>0);
+  if(photoBitmap) await renderPreview();
+};
+syncTabs();
+
+/* ---------- 공유/저장: 현재 탭의 결과물 1개 ---------- */
+function dateStamp(){
+  const d = new Date();
+  return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+}
+$('savePng').onclick = ()=>{
+  saveToGallery();   // 이 기기 갤러리에도 컬러 원본으로 보관
+  const isColor = viewMode === 'color';
+  const type = isColor ? 'image/jpeg' : 'image/png';
+  const ext  = isColor ? 'jpg' : 'png';
+  const tag  = isColor ? '컬러' : '인쇄';
+  const n = ($('elderName').value.trim() || '말씀사진');
+  const fname = `${n}_${dateStamp()}_${tag}.${ext}`;
+  $('previewCanvas').toBlob(async b=>{
+    const file = new File([b], fname, {type});
+    // 1순위: 시스템 공유 시트 (카톡·구글포토·드라이브 등)
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      try{ await navigator.share({files:[file], title:fname}); return; }
+      catch(e){ if(e.name==='AbortError') return; /* 사용자가 닫음 */ }
+    }
+    // 폴백: 다운로드
     const a = document.createElement('a');
     a.href = URL.createObjectURL(b);
-    const n = $('elderName').value.trim() || '말씀사진';
-    a.download = n + '_' + Date.now() + '.png';
+    a.download = fname;
     a.click();
-  });
-}
-$('savePng').onclick = saveCardPng;
+  }, type, 0.92);
+};
 
 /* ================= 고양이 프린터 (Web Bluetooth) ================= */
 let btDevice = null, btChar = null, btData = null, btNotify = null;
@@ -955,7 +1277,7 @@ function showErr(msg){
   setTimeout(()=>{ n.classList.remove('err'); n.innerHTML = '<b>처음 설정:</b> 프린터 전원을 켜고 [🖨 인쇄하기]를 누르면 블루투스 기기 선택창이 떠요. GB / GT / MX / YT / SC로 시작하는 이름을 선택하면 연결됩니다.'; }, 8000);
 }
 
-$('printBtn').onclick = ()=>{ if(lastBits){ saveCardPng(); doPrint(lastBits, lastH); } };
+$('printBtn').onclick = async ()=>{ if(photoBitmap){ saveToGallery(); await ensurePrintBits(); doPrint(lastBits, lastH); } };
 $('printBtnB').onclick = ()=>{
   $('modalBg').classList.remove('show');
   if(lastBits) doPrintB(lastBits, lastH);
@@ -1000,6 +1322,153 @@ $('testPrint').onclick = async ()=>{
   doPrint(bits, 140);
 };
 
+/* ================= 갤러리 (이 기기 안, IndexedDB · 무료) =================
+   - 저장 위치: 브라우저 IndexedDB → 이 태블릿 안에만. 서버·비용 없음.
+   - 장소 구분: 설정의 '교회 이름'(cfg.church)을 site로 태그 → 기기를 다른 곳에
+     재설치해도 장소별로 안 섞임. 기본은 현재 교회 카드만 보여줌.
+   - 저장 이미지: 컬러 카드 원본(JPEG) — 공유/재저장에 그대로 쓸 수 있게. */
+const GAL_DB = 'onmaeum-gallery', GAL_STORE = 'cards';
+let _galdb = null;
+function galDB(){
+  return new Promise((res,rej)=>{
+    if(_galdb) return res(_galdb);
+    let rq;
+    try{ rq = indexedDB.open(GAL_DB, 1); }
+    catch(e){ return rej(e); }
+    rq.onupgradeneeded = e=>{
+      const db = e.target.result;
+      if(!db.objectStoreNames.contains(GAL_STORE)){
+        const os = db.createObjectStore(GAL_STORE, {keyPath:'id', autoIncrement:true});
+        os.createIndex('site','site',{unique:false});
+      }
+    };
+    rq.onsuccess = e=>{ _galdb = e.target.result; res(_galdb); };
+    rq.onerror = ()=>rej(rq.error);
+  });
+}
+async function galAdd(rec){
+  const db = await galDB();
+  return new Promise((res,rej)=>{
+    const tx = db.transaction(GAL_STORE,'readwrite');
+    tx.objectStore(GAL_STORE).add(rec);
+    tx.oncomplete = ()=>res(); tx.onerror = ()=>rej(tx.error);
+  });
+}
+async function galList(site){
+  const db = await galDB();
+  return new Promise((res,rej)=>{
+    const tx = db.transaction(GAL_STORE,'readonly');
+    const out = [];
+    const rq = tx.objectStore(GAL_STORE).openCursor(null,'prev'); // 최신 먼저
+    rq.onsuccess = e=>{
+      const cur = e.target.result;
+      if(cur){ const v = cur.value; if(!site || v.site===site) out.push(v); cur.continue(); }
+      else res(out);
+    };
+    rq.onerror = ()=>rej(rq.error);
+  });
+}
+async function galCount(site){
+  try{ return (await galList(site)).length; }catch(e){ return 0; }
+}
+async function galDelete(id){
+  const db = await galDB();
+  return new Promise((res,rej)=>{
+    const tx = db.transaction(GAL_STORE,'readwrite');
+    tx.objectStore(GAL_STORE).delete(id);
+    tx.oncomplete = ()=>res(); tx.onerror = ()=>rej(tx.error);
+  });
+}
+
+/* 현재 카드를 갤러리에 1회 저장 (인쇄·공유에서 호출, 중복 방지) */
+async function saveToGallery(){
+  if(savedThisCard || !photoBitmap) return;
+  savedThisCard = true;               // 먼저 잠가 중복 저장 방지
+  try{
+    const card = buildCard('color');  // 컬러 원본으로 보관
+    const blob = await new Promise(r=>card.toBlob(r,'image/jpeg',0.9));
+    if(!blob){ savedThisCard = false; return; }
+    const [v, ref] = VERSES[verseIdx];
+    const d = new Date();
+    await galAdd({
+      site: cfg.church,
+      name: $('elderName').value.trim(),
+      ref, verse: v,
+      ymd: `${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}`,
+      ts: d.getTime(),
+      blob
+    });
+    updateGalBadge();
+  }catch(e){ savedThisCard = false; /* 실패 시 다음 기회에 재시도 가능 */ }
+}
+
+async function updateGalBadge(){
+  const b = $('galBadge');
+  const n = await galCount(cfg.church);
+  if(n>0){ b.textContent = n>99?'99+':n; b.classList.add('show'); }
+  else b.classList.remove('show');
+}
+
+/* ---- 갤러리 화면 ---- */
+let galUrls = [];   // 화면에 띄운 objectURL들 (닫을 때 정리)
+let gzCur = null;   // 확대 보기 중인 레코드
+
+function clearGalUrls(){ galUrls.forEach(u=>URL.revokeObjectURL(u)); galUrls = []; }
+
+async function openGallery(){
+  const grid = $('galleryGrid'), empty = $('galleryEmpty');
+  $('galSub').textContent = ' · ' + cfg.church;
+  grid.innerHTML = ''; clearGalUrls();
+  $('galleryView').classList.add('show');
+  let items = [];
+  try{ items = await galList(cfg.church); }catch(e){}
+  if(!items.length){ empty.classList.add('show'); grid.style.display='none'; return; }
+  empty.classList.remove('show'); grid.style.display='grid';
+  for(const it of items){
+    const url = URL.createObjectURL(it.blob); galUrls.push(url);
+    const el = document.createElement('div');
+    el.className = 'gcard';
+    el.innerHTML = `<img src="${url}" alt=""><div class="cap">${it.name ? it.name+' · ' : ''}${it.ymd}</div>`;
+    el.onclick = ()=>openGZoom(it, url);
+    grid.appendChild(el);
+  }
+}
+function closeGallery(){
+  $('galleryView').classList.remove('show');
+  clearGalUrls();
+}
+function openGZoom(rec, url){
+  gzCur = rec;
+  $('gzoomImg').src = url;
+  $('gzoom').classList.add('show');
+}
+function closeGZoom(){ $('gzoom').classList.remove('show'); gzCur = null; }
+
+$('galleryBtn').onclick = openGallery;
+$('galleryClose').onclick = closeGallery;
+$('gzClose').onclick = closeGZoom;
+$('gzShare').onclick = async ()=>{
+  if(!gzCur) return;
+  const n = (gzCur.name || '말씀사진');
+  const fname = `${n}_${(gzCur.ymd||'').replace(/\./g,'')}_컬러.jpg`;
+  const file = new File([gzCur.blob], fname, {type:'image/jpeg'});
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file], title:fname}); return; }
+    catch(e){ if(e.name==='AbortError') return; }
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(gzCur.blob); a.download = fname; a.click();
+};
+$('gzDel').onclick = async ()=>{
+  if(!gzCur) return;
+  if(!confirm('이 카드를 삭제할까요?')) return;
+  try{ await galDelete(gzCur.id); }catch(e){}
+  closeGZoom();
+  await openGallery();   // 목록 새로고침
+  updateGalBadge();
+};
+updateGalBadge();   // 시작 시 배지 갱신
+
 /* ================= 설정 ================= */
 function syncSettings(){
   $('churchName').value = cfg.church;
@@ -1011,7 +1480,7 @@ function syncSettings(){
 $('gearBtn').onclick = ()=>{ syncSettings(); $('modalBg').classList.add('show'); };
 $('modalBg').onclick = e=>{ if(e.target===$('modalBg')) $('modalBg').classList.remove('show'); };
 $('closeSettings').onclick = ()=>{ $('modalBg').classList.remove('show'); if(photoBitmap) renderPreview(); };
-$('churchName').onchange = e=>{ cfg.church = e.target.value.trim() || '평해감리교회'; };
+$('churchName').onchange = e=>{ cfg.church = e.target.value.trim() || '평해감리교회'; updateGalBadge(); };
 $('footerText').onchange = e=>{ cfg.footer = e.target.value.trim() || '온마음 · 예수님이 사랑하십니다'; };
 $('energy').oninput = e=>{ cfg.energy = e.target.value; $('energyVal').textContent = e.target.value+' / 10'; };
 $('bright').oninput = e=>{ cfg.bright = e.target.value; $('brightVal').textContent = (e.target.value>0?'+':'')+e.target.value; };
