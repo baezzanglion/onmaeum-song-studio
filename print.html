@@ -56,8 +56,17 @@
     flex-direction:column;align-items:center;justify-content:center;
   }
   .cam-view.show{display:flex}
-  .cam-view video{width:100%;max-height:70vh;object-fit:contain;background:#000}
-  .cam-view video.mirror{transform:scaleX(-1)}
+  /* 프레임 비율 = 인쇄될 카드의 사진 비율 (384:420) — 보이는 대로 인쇄 */
+  .cam-frame{
+    width:min(92vw, 55vh);
+    aspect-ratio:384/420;
+    overflow:hidden;background:#000;border:2px solid rgba(255,255,255,.35);border-radius:6px;
+  }
+  .cam-view video{width:100%;height:100%;object-fit:cover;transition:transform .15s}
+  .zoom-row{display:flex;align-items:center;gap:14px;width:min(90%,520px);padding-top:14px}
+  .zoom-label{color:#fff;font-family:'Gaegu',cursive;font-size:1.1rem;white-space:nowrap}
+  .zoom-val{color:var(--persimmon);font-family:'Gaegu',cursive;font-size:1.1rem;min-width:44px}
+  #zoomSlider{flex:1;accent-color:var(--persimmon)}
   .cam-controls{display:flex;align-items:center;gap:26px;padding:22px 0}
   .cam-snap{
     width:84px;height:84px;border-radius:50%;border:5px solid #fff;background:var(--persimmon);
@@ -144,7 +153,7 @@
     <div class="brand">온마음 <small>말씀 사진관</small></div>
     <button class="gear" id="gearBtn" aria-label="설정">⚙</button>
   </header>
-  <div class="sub">교회에 오신 날, 사진과 말씀을 한 장에 — 평해감리교회</div>
+  <div class="sub">교회에 오신 날, 사진과 말씀을 한 장에 — 평해감리교회 <span style="color:var(--persimmon);font-family:'Gaegu',cursive">· v2 확대 촬영판</span></div>
 
   <div class="status" id="prStatus"><span class="dot"></span><span id="prStatusText">프린터 연결 안 됨 (이미지 저장은 가능)</span></div>
 
@@ -190,7 +199,12 @@
 
 <!-- 페이지 내 카메라 -->
 <div class="cam-view" id="camView">
-  <video id="camVideo" autoplay playsinline muted></video>
+  <div class="cam-frame"><video id="camVideo" autoplay playsinline muted></video></div>
+  <div class="zoom-row">
+    <span class="zoom-label">🔍 확대</span>
+    <input type="range" id="zoomSlider" min="10" max="30" step="1" value="10">
+    <span class="zoom-val" id="zoomVal">1.0×</span>
+  </div>
   <div class="cam-count" id="camCount">3</div>
   <div style="color:rgba(255,255,255,.85);font-size:.85rem;padding-top:10px;font-family:'Gowun Batang',serif">💡 밝은 쪽(창문·조명)을 바라보면 얼굴이 환하게 나와요</div>
   <div class="cam-controls">
@@ -617,6 +631,18 @@ document.querySelectorAll('#facingChips .chip').forEach(c=>{
 syncFacing();
 
 let camStream = null;
+let zoom = 1.0;
+
+function applyVideoTransform(){
+  // 셀카는 거울처럼(좌우반전) + 확대를 하나의 transform으로
+  const zx = (facing==='user') ? -zoom : zoom;
+  $('camVideo').style.transform = `scale(${zx}, ${zoom})`;
+}
+$('zoomSlider').oninput = e=>{
+  zoom = e.target.value/10;
+  $('zoomVal').textContent = zoom.toFixed(1)+'×';
+  applyVideoTransform();
+};
 
 async function startCam(){
   stopCam();
@@ -627,7 +653,7 @@ async function startCam(){
       audio:false
     });
     video.srcObject = camStream;
-    video.classList.toggle('mirror', facing==='user'); // 셀카는 거울처럼 보이게
+    applyVideoTransform();
     $('camView').classList.add('show');
   }catch(e){
     // 카메라 접근 실패 → 카메라 앱 폴백
@@ -664,12 +690,21 @@ $('camTimer').onclick = ()=>{
   syncTimerBtn();
 };
 
+const FRAME_RATIO = 384/420; // 카메라 프레임 = 카드 사진 영역 비율
+
 async function captureFrame(){
   const video = $('camVideo');
   if(!camStream || !video.videoWidth) return;
+  // 화면 프레임(cover)에 실제로 보이는 영역을 계산 → 줌 반영 → 그대로 크롭
+  const vw = video.videoWidth, vh = video.videoHeight;
+  let cw, ch;
+  if(vw/vh > FRAME_RATIO){ ch = vh; cw = vh*FRAME_RATIO; }
+  else { cw = vw; ch = vw/FRAME_RATIO; }
+  cw /= zoom; ch /= zoom;
+  const sx = (vw-cw)/2, sy = (vh-ch)/2;
   const c = document.createElement('canvas');
-  c.width = video.videoWidth; c.height = video.videoHeight;
-  c.getContext('2d').drawImage(video, 0, 0);
+  c.width = Math.round(cw); c.height = Math.round(ch);
+  c.getContext('2d').drawImage(video, sx, sy, cw, ch, 0, 0, c.width, c.height);
   stopCam();
   $('camView').classList.remove('show');
   photoBitmap = c;
