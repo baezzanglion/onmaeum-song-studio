@@ -708,7 +708,7 @@ $('rerollVerse').onclick = async ()=>{
   verseIdx = (verseIdx + 1 + Math.floor(Math.random()*(VERSES.length-1))) % VERSES.length;
   await renderPreview();
 };
-$('savePng').onclick = ()=>{
+function saveCardPng(){
   $('previewCanvas').toBlob(b=>{
     const a = document.createElement('a');
     a.href = URL.createObjectURL(b);
@@ -716,7 +716,8 @@ $('savePng').onclick = ()=>{
     a.download = n + '_' + Date.now() + '.png';
     a.click();
   });
-};
+}
+$('savePng').onclick = saveCardPng;
 
 /* ================= 고양이 프린터 (Web Bluetooth) ================= */
 let btDevice = null, btChar = null, btData = null, btNotify = null;
@@ -919,7 +920,7 @@ function showErr(msg){
   setTimeout(()=>{ n.classList.remove('err'); n.innerHTML = '<b>처음 설정:</b> 프린터 전원을 켜고 [🖨 인쇄하기]를 누르면 블루투스 기기 선택창이 떠요. GB / GT / MX / YT / SC로 시작하는 이름을 선택하면 연결됩니다.'; }, 8000);
 }
 
-$('printBtn').onclick = ()=>{ if(lastBits) doPrint(lastBits, lastH); };
+$('printBtn').onclick = ()=>{ if(lastBits){ saveCardPng(); doPrint(lastBits, lastH); } };
 $('printBtnB').onclick = ()=>{
   $('modalBg').classList.remove('show');
   if(lastBits) doPrintB(lastBits, lastH);
