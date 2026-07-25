@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>온마음 — 시골 선교에 AI를 데려간 이야기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Gowun+Batang:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#FAF4E8; --card:#FFFDF8; --ink:#2B2620; --ink-soft:#6B6152;
+    --sea:#1E6E68; --sea-deep:#0F4844; --persimmon:#C96A3B; --persimmon-deep:#A84F26;
+    --line:#D9CBB2;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;background:var(--paper)}
+  body{
+    font-family:'Gowun Batang',serif;color:var(--ink);
+    background-image:radial-gradient(circle at 15% 8%, rgba(201,106,59,.06), transparent 40%),
+                     radial-gradient(circle at 88% 92%, rgba(30,110,104,.07), transparent 45%);
+  }
+  /* ---------- 무대 (1280x720 고정 스케일) ---------- */
+  #stage-wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+  #stage{width:1280px;height:720px;position:relative;transform-origin:center center}
+
+  /* ---------- 슬라이드 = 감열 카드 ---------- */
+  .slide{
+    position:absolute;inset:40px 70px 64px;
+    background:var(--card);border:1.5px solid var(--line);border-radius:6px;
+    box-shadow:0 10px 40px rgba(43,38,32,.12);
+    padding:52px 68px 44px;
+    display:none;flex-direction:column;
+  }
+  .slide::before{ /* 절취선 */
+    content:'';position:absolute;top:22px;left:44px;right:44px;
+    border-top:2.5px dashed var(--line);
+  }
+  .slide.active{display:flex;animation:printout .55s cubic-bezier(.2,.9,.3,1.05)}
+  @keyframes printout{
+    from{opacity:0;transform:translateY(56px)}
+    to{opacity:1;transform:none}
+  }
+  @media (prefers-reduced-motion: reduce){ .slide.active{animation:none} }
+
+  /* ---------- 타이포 ---------- */
+  .eyebrow{
+    font-family:'Gaegu',cursive;font-size:24px;color:var(--persimmon);
+    letter-spacing:.06em;margin-bottom:10px;
+  }
+  h1{font-family:'Gaegu',cursive;font-weight:700;font-size:74px;line-height:1.18;color:var(--sea-deep)}
+  h2{font-family:'Gaegu',cursive;font-weight:700;font-size:52px;line-height:1.2;color:var(--sea-deep);margin-bottom:26px}
+  h2 .num{color:var(--persimmon);margin-right:14px}
+  p.lead{font-size:29px;line-height:1.75;color:var(--ink)}
+  .muted{color:var(--ink-soft)}
+  .accent{color:var(--persimmon-deep)}
+  .sea{color:var(--sea-deep)}
+  b{font-weight:700}
+
+  /* ---------- 공통 부품 ---------- */
+  .grow{flex:1;display:flex;flex-direction:column;justify-content:center}
+  .cols{display:flex;gap:40px;flex:1;align-items:stretch}
+  .col{flex:1;display:flex;flex-direction:column;justify-content:center}
+
+  .ticket{
+    background:var(--paper);border:1.5px solid var(--line);border-radius:10px;
+    padding:26px 30px;font-size:26px;line-height:1.7;
+  }
+  .ticket + .ticket{margin-top:18px}
+  .ticket .t-label{font-family:'Gaegu',cursive;font-size:24px;color:var(--sea);display:block;margin-bottom:4px}
+
+  .flow{display:flex;align-items:center;gap:14px;justify-content:center;flex-wrap:wrap}
+  .step{
+    background:var(--paper);border:2px solid var(--sea);border-radius:14px;
+    padding:20px 24px;text-align:center;font-size:25px;line-height:1.5;min-width:150px;
+  }
+  .step small{display:block;font-family:'Gaegu',cursive;font-size:21px;color:var(--persimmon);margin-top:4px}
+  .arrow{font-size:30px;color:var(--persimmon);font-family:'Gaegu',cursive}
+  .step.human{border-style:dashed;border-color:var(--persimmon)}
+
+  .mono{
+    font-family:ui-monospace,Consolas,monospace;font-size:23px;line-height:1.75;
+    background:#221E19;color:#9FD3C7;border-radius:12px;padding:22px 28px;
+  }
+  .mono .bad{color:#E8A18C}
+  .mono .good{color:#C8E6A0}
+
+  .bigstat{display:flex;gap:36px;justify-content:center}
+  .stat{text-align:center;background:var(--paper);border:1.5px solid var(--line);border-radius:14px;padding:30px 10px;flex:1}
+  .stat .n{font-family:'Gaegu',cursive;font-size:84px;font-weight:700;color:var(--persimmon-deep);line-height:1}
+  .stat .l{font-size:24px;color:var(--ink-soft);margin-top:10px}
+
+  .verse{
+    text-align:center;font-size:26px;color:var(--ink-soft);
+    border-top:1px solid var(--line);padding-top:22px;margin-top:auto;
+  }
+
+  .vs{display:flex;gap:30px;align-items:stretch}
+  .vs .side{flex:1;border-radius:14px;padding:26px 30px;font-size:26px;line-height:1.7}
+  .vs .before{background:#F6E4DC;border:1.5px solid var(--persimmon)}
+  .vs .after{background:#E4EFEA;border:1.5px solid var(--sea)}
+  .vs .side .v-title{font-family:'Gaegu',cursive;font-size:28px;display:block;margin-bottom:8px}
+  .before .v-title{color:var(--persimmon-deep)}
+  .after .v-title{color:var(--sea-deep)}
+
+  ul.big{list-style:none;font-size:29px;line-height:1.7}
+  ul.big li{padding-left:40px;position:relative;margin-bottom:22px}
+  ul.big li::before{content:'✦';position:absolute;left:4px;color:var(--persimmon);font-size:26px}
+
+  .quotebox{
+    font-family:'Gaegu',cursive;font-size:46px;line-height:1.5;color:var(--sea-deep);
+    text-align:center;
+  }
+  .quotebox .q-mark{color:var(--persimmon);font-size:64px}
+
+  /* ---------- HUD ---------- */
+  #hud{
+    position:absolute;bottom:18px;left:70px;right:70px;display:flex;align-items:center;gap:18px;
+    font-family:'Gaegu',cursive;color:var(--ink-soft);font-size:21px;
+  }
+  #roll{flex:1;height:7px;background:rgba(217,203,178,.5);border-radius:5px;overflow:hidden}
+  #roll i{display:block;height:100%;width:0;background:var(--persimmon);border-radius:5px;transition:width .3s}
+  #pageno{min-width:70px;text-align:right}
+  #brandmark{color:var(--sea-deep);font-weight:700}
+</style>
+</head>
+<body>
+<div id="stage-wrap">
+  <div id="stage">
+
+    <!-- 1. 타이틀 -->
+    <section class="slide">
+      <div class="grow" style="text-align:center">
+        <div class="eyebrow">스폰지클럽 · AI 스터디 발표 · 배짱</div>
+        <h1>시골 선교에<br>AI를 데려갔더니</h1>
+        <p class="lead" style="margin-top:26px">경북 울진 평해, 어르신들을 위한<br><b class="sea">개인 헌정곡</b>과 <b class="accent">말씀 사진관</b>을 만든 2주의 기록</p>
+      </div>
+      <div class="verse">온마음 · 예수님이 사랑하십니다 — 감열 프린터로 인쇄된 모든 카드의 마지막 줄</div>
+    </section>
+
+    <!-- 2. 무대와 제약 -->
+    <section class="slide">
+      <h2>무대: 동해관</h2>
+      <div class="cols">
+        <div class="col">
+          <p class="lead">경북 영덕·울진, 평해감리교회와 함께하는 선교.<br>
+          어르신들이 모여 계신 마을 시설 <b>'동해관' 4~6곳</b>을 이틀간 방문해 마사지·식사를 대접하며 복음을 전한다.</p>
+          <p class="lead" style="margin-top:20px">이번 목표 — <b class="accent">"AI로 어르신 한 분 한 분에게<br>세상에 하나뿐인 선물을"</b></p>
+        </div>
+        <div class="col">
+          <div class="ticket"><span class="t-label">제약 조건 (이게 설계의 전부)</span>
+            한 곳당 체류 <b>60~90분</b> · 어르신 10~20분<br>
+            선교대원 20+명, 전원 <b>비개발자</b><br>
+            기술 운영 인력 <b>사실상 1명 (나)</b><br>
+            시골 해안마을 — 통신·전기 불확실
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. 만든 것 두 가지 -->
+    <section class="slide">
+      <h2>만든 것, 두 가지</h2>
+      <div class="cols">
+        <div class="col">
+          <div class="ticket" style="flex:1;display:flex;flex-direction:column;justify-content:center;text-align:center">
+            <span class="t-label" style="font-size:34px">🎵 이야기 노래 스튜디오</span>
+            마사지하며 나눈 어르신의 인생 이야기가<br><b>후렴에 성함이 들어간 트로트·찬양</b>이 된다
+            <div class="muted" style="font-size:22px;margin-top:14px">봉사자 스마트폰 · 링크 하나로 참여</div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="ticket" style="flex:1;display:flex;flex-direction:column;justify-content:center;text-align:center">
+            <span class="t-label" style="font-size:34px">📷 말씀 사진관</span>
+            태블릿으로 찍으면 사진+성함+축복 말씀이<br><b>감열 프린터에서 즉석 인쇄</b>된다
+            <div class="muted" style="font-size:22px;margin-top:14px">선교팀이 떠나도 교회가 매주 운영</div>
+          </div>
+        </div>
+      </div>
+      <div class="verse">공통 철학 — 단일 HTML · 빌드 없음 · 링크가 곧 배포</div>
+    </section>
+
+    <!-- 4. 파이프라인 1 -->
+    <section class="slide">
+      <h2><span class="num">01</span>노래 스튜디오 파이프라인</h2>
+      <div class="grow">
+        <div class="flow">
+          <div class="step">마사지하며<br>대화<small>봉사자 20명</small></div>
+          <div class="arrow">→</div>
+          <div class="step">실시간<br>받아쓰기<small>Web Speech API</small></div>
+          <div class="arrow">→</div>
+          <div class="step">가사·스타일<br>생성<small>Claude Opus</small></div>
+          <div class="arrow">→</div>
+          <div class="step human">Suno에<br>붙여넣기<small>사람, 30초</small></div>
+          <div class="arrow">→</div>
+          <div class="step">발표 🔊<br>+ QR<small>포토카드 뒷면</small></div>
+        </div>
+        <p class="lead" style="text-align:center;margin-top:44px">Suno는 공식 API가 없다 → 비공식 API에 사역을 걸지 않고<br><b class="accent">자동화의 경계를 '가사 완성까지'로 의도적으로 설정</b></p>
+      </div>
+    </section>
+
+    <!-- 5. 파이프라인 2 -->
+    <section class="slide">
+      <h2><span class="num">02</span>말씀 사진관 파이프라인</h2>
+      <div class="grow">
+        <div class="flow">
+          <div class="step">페이지 내<br>카메라<small>전면/후면/타이머</small></div>
+          <div class="arrow">→</div>
+          <div class="step">지역 적응<br>명암 보정<small>역광 얼굴 살리기</small></div>
+          <div class="arrow">→</div>
+          <div class="step">선명화 +<br>디더링<small>플로이드-스타인버그</small></div>
+          <div class="arrow">→</div>
+          <div class="step">말씀 100개<br>합성<small>랜덤 + 리롤</small></div>
+          <div class="arrow">→</div>
+          <div class="step">블루투스<br>인쇄<small>Web Bluetooth</small></div>
+        </div>
+        <p class="lead" style="text-align:center;margin-top:44px">2만 원짜리 '고양이 프린터'를 <b class="sea">앱 없이 브라우저가 직접 제어</b><br><span class="muted">0x51 0x78 프레임 + CRC8 — 프로토콜을 손으로 구현</span></p>
+      </div>
+    </section>
+
+    <!-- 6. 아키텍처 -->
+    <section class="slide">
+      <h2>아키텍처는 사람에서 역산했다</h2>
+      <div class="cols">
+        <div class="col">
+          <ul class="big">
+            <li><b>단일 HTML + Vanilla JS</b> — 빌드 없음, 파일 교체가 곧 배포</li>
+            <li><b>GitHub → Vercel 자동 배포</b> — 커밋 1분 뒤 전 팀원에게 반영</li>
+            <li><b>서버리스 프록시 + 팀 코드</b> — API 키는 서버에만, 팀원은 코드 하나</li>
+          </ul>
+        </div>
+        <div class="col">
+          <div class="ticket"><span class="t-label">왜 이렇게?</span>
+          "20명 비개발자가 <b>링크만 받으면</b> 쓸 수 있는가"<br>
+          "내가 없어도 <b>사모님이 운영할 수 있는가</b>"<br><br>
+          <span class="muted">기술 스택은 이 두 질문의 답이었을 뿐</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. 삽질 1 -->
+    <section class="slide">
+      <div class="eyebrow">삽질의 기록 ①</div>
+      <h2>카카오톡 인앱 브라우저 지옥</h2>
+      <div class="vs">
+        <div class="side before"><span class="v-title">증상</span>
+        팀원에게 카톡으로 링크 공유 → 카톡 내장 브라우저로 열림 → 마이크 권한창이 <b>무한 반복</b>으로 뜸. 인앱 브라우저는 권한을 기억하지 못한다.</div>
+        <div class="side after"><span class="v-title">해결</span>
+        UA로 인앱 감지 → 경고 배너 + <b>"크롬으로 열기" 원터치 버튼</b><br>
+        <span class="mono" style="display:block;font-size:19px;padding:10px 14px;margin-top:10px">kakaotalk://web/openExternal?url=…</span></div>
+      </div>
+      <div class="verse">교훈 — 실사용자의 링크는 카톡에서 열린다. 데스크톱 크롬은 테스트 환경이 아니다</div>
+    </section>
+
+    <!-- 8. 삽질 2 -->
+    <section class="slide">
+      <div class="eyebrow">삽질의 기록 ②</div>
+      <h2>같은 말이 자꾸 길어지며 반복된다</h2>
+      <div class="grow">
+        <div class="mono">받아쓰기: <span class="bad">잘못 쉴 → 잘못 쉴 때는 → 잘못 쉴 때는 무슨 일 → …</span><br>
+원인: 안드로이드 크롬이 확정 결과를 <b>누적된 형태로 재전송</b><br><br>
+mergeFinal(base, add):<br>
+&nbsp;&nbsp;<span class="good">add가 base로 시작하면 → 통째로 교체</span><br>
+&nbsp;&nbsp;<span class="good">base 꼬리 == add 머리 → 겹친 만큼만 이어붙임</span><br>
+결과: <span class="good">"잘못 쉴 때는 무슨 일 하셨어요"</span> ✓</div>
+        <p class="lead" style="margin-top:26px;text-align:center">1차 수정(재조립)은 실패 → 실제 중복 패턴을 <b class="sea">시뮬레이션 테스트로 재현</b>한 뒤에야 잡힘</p>
+      </div>
+    </section>
+
+    <!-- 9. 삽질 3 -->
+    <section class="slide">
+      <div class="eyebrow">삽질의 기록 ③</div>
+      <h2>"찬양을 골랐는데 Korean Trot이 나와요"</h2>
+      <div class="vs">
+        <div class="side before"><span class="v-title">원인</span>
+        Suno 스타일 프롬프트 작성을 <b>AI 재량에 맡김</b> + 페르소나가 "트로트 작사가"로 고정 → 장르가 서로 스며듦</div>
+        <div class="side after"><span class="v-title">해결</span>
+        스타일은 분위기×보컬 <b>확정 템플릿(코드)</b>으로 회수<br>
+        가사는 분위기별 페르소나·지침으로 분리<br>
+        <span class="muted">창의성이 필요한 곳과 일관성이 필요한 곳을 나눔</span></div>
+      </div>
+      <div class="verse">교훈 — 생성형 AI 설계의 핵심은 "무엇을 생성시키지 <b>않을</b> 것인가"의 결정</div>
+    </section>
+
+    <!-- 10. 삽질 4 -->
+    <section class="slide">
+      <div class="eyebrow">삽질의 기록 ④</div>
+      <h2>프린터 미스터리</h2>
+      <div class="grow">
+        <ul class="big">
+          <li>도착한 프린터 이름이 <b>SC05-A64B</b> — 지원 목록에 없는 변종. 프로토콜 조사, 진단 로그, 방식 B 구현까지 준비했는데…</li>
+          <li>연결은 되는데 출력이 안 됨 → 급지 테스트, 응답 로그 분석 → <b class="accent">범인은 뒤집혀 들어간 감열지</b> 🙃</li>
+          <li>덕분에 얻은 것 — 진단 도구 일체 + <b class="sea">"용지 방향"이 교회 운영 매뉴얼 1번 항목</b>이라는 실증</li>
+        </ul>
+      </div>
+      <div class="verse">교훈 — 하드웨어 버그의 절반은 소프트웨어가 아니다 · 브랜드 제품(PeriPage)이 오히려 비호환이었다는 반전도</div>
+    </section>
+
+    <!-- 11. 삽질 5 -->
+    <section class="slide">
+      <div class="eyebrow">삽질의 기록 ⑤</div>
+      <h2>검은 얼굴 3부작 — 명암 보정의 진화</h2>
+      <div class="grow">
+        <div class="flow">
+          <div class="step">v1 전역 평균<small>역광에서 얼굴 실루엣</small></div>
+          <div class="arrow">→</div>
+          <div class="step">v2 중앙 가중<small>구석 인물에서 또 실패</small></div>
+          <div class="arrow">→</div>
+          <div class="step" style="border-width:3px">v3 지역 적응<small>조명 맵 · 구도 무관</small></div>
+        </div>
+        <div class="mono" style="margin-top:34px">시뮬레이션 검증 (인물 구석 + 밝은 벽 구도)<br>
+얼굴 밝기 <span class="bad">25 (실루엣)</span> → <span class="good">64~78 (윤곽 살아남)</span> · 벽은 그대로 유지</div>
+        <p class="lead" style="text-align:center;margin-top:22px">현장에서 이틀간 <b class="accent">실패 → 원인 분석 → 재배포</b>를 반복하며 도달</p>
+      </div>
+    </section>
+
+    <!-- 12. 배운 것: 기술 -->
+    <section class="slide">
+      <h2>배운 것 — 기술</h2>
+      <ul class="big" style="margin-top:10px">
+        <li><b>데스크톱 성공은 아무것도 보장하지 않는다.</b> Web Speech API 하나가 PC 크롬 / 안드로이드 크롬 / 카톡에서 전부 다르게 동작했다</li>
+        <li><b>브라우저는 생각보다 멀리 간다.</b> 앱 없이 카메라·캔버스 이미지 처리·BLE 프린터 제어까지. 단, iOS는 Web Bluetooth 불가 — "웹으로 되는가"보다 <b class="sea">"우리 사용자 기기에서 되는가"</b></li>
+        <li><b>공급망 조사도 개발이다.</b> "페어링 시 블루투스 기기 이름이 뭔가요?" — 이 한 줄 질문이 시스템 성립 조건이었다</li>
+      </ul>
+    </section>
+
+    <!-- 13. 배운 것: AI 설계 -->
+    <section class="slide">
+      <h2>배운 것 — AI와 일하는 법</h2>
+      <ul class="big" style="margin-top:10px">
+        <li><b>자동화의 목표는 100%가 아니라 병목 제거.</b> Suno 수동 30초를 남긴 덕에 비공식 API 리스크를 피했고, 그 30초는 품질 검수 지점이 됐다</li>
+        <li><b>모든 자동 경로에 수동 폴백.</b> 음성 인식이 죽어도 텍스트 입력으로, 프린터가 죽어도 PNG 저장으로 — 폴백 없는 자동화는 현장에서 죽는다</li>
+        <li><b>AI(Claude)와의 바이브코딩</b> — 스크린샷 던지고, 증상 말하고, 고친 파일 받아 커밋. 현장에서 문제 발견 → <b class="accent">당일 수정 배포</b>가 실제로 됐다</li>
+      </ul>
+    </section>
+
+    <!-- 14. 인사이트 -->
+    <section class="slide">
+      <h2>인사이트</h2>
+      <ul class="big" style="margin-top:10px">
+        <li><b>지속가능성은 기술이 아니라 운영 설계다.</b> 이 시스템의 성패는 프로토콜이 아니라 "사모님이 매주 충전하고 롤을 갈 수 있는가". 버튼 하나의 UI와 두 줄 매뉴얼이 코드만큼 중요한 산출물</li>
+        <li><b>제약은 콘셉트로 뒤집을 수 있다.</b> 흑백 디더링 → 옛날 신문 사진의 감성 · 바래는 감열지 → "평생 소장품"이 아니라 <b class="accent">"매주 새로 받는 리추얼"</b></li>
+        <li><b>제약을 먼저 수치화하고 역산하라.</b> 60~90분 / 운영 1명 / 비개발자 20명 — 팀 코드, 질문 가이드, 원터치 복사가 전부 여기서 나왔다</li>
+      </ul>
+    </section>
+
+    <!-- 15. 숫자 -->
+    <section class="slide">
+      <h2>숫자로 남은 2주</h2>
+      <div class="grow">
+        <div class="bigstat">
+          <div class="stat"><div class="n">2</div><div class="l">시스템</div></div>
+          <div class="stat"><div class="n">4</div><div class="l">배포 파일</div></div>
+          <div class="stat"><div class="n">0</div><div class="l">빌드 단계</div></div>
+          <div class="stat"><div class="n">100</div><div class="l">축복 말씀</div></div>
+          <div class="stat"><div class="n">12</div><div class="l">기록된 삽질</div></div>
+        </div>
+        <p class="lead" style="text-align:center;margin-top:40px">그리고 숫자가 안 되는 것 —<br><b class="sea">자기 이름이 들어간 노래를 처음 들은 어르신들의 표정</b></p>
+      </div>
+    </section>
+
+    <!-- 16. 마무리 -->
+    <section class="slide">
+      <div class="grow quotebox">
+        <div class="q-mark">"</div>
+        떠난 뒤에도 돌아가는 것까지가<br>시스템이다
+      </div>
+      <div class="verse">
+        github.com/baezzanglion · onmaeum-song-studio.vercel.app<br>
+        <span style="font-family:'Gaegu',cursive;font-size:30px;color:var(--sea-deep)">감사합니다 · Q&A</span>
+      </div>
+    </section>
+
+    <div id="hud">
+      <span id="brandmark">온마음</span>
+      <div id="roll"><i></i></div>
+      <span id="pageno">1 / 16</span>
+    </div>
+  </div>
+</div>
+
+<script>
+  const slides = [...document.querySelectorAll('.slide')];
+  let cur = 0;
+
+  function show(n){
+    cur = Math.max(0, Math.min(slides.length-1, n));
+    slides.forEach((s,i)=>s.classList.toggle('active', i===cur));
+    document.getElementById('pageno').textContent = (cur+1)+' / '+slides.length;
+    document.querySelector('#roll i').style.width = ((cur+1)/slides.length*100)+'%';
+    location.hash = cur+1;
+  }
+
+  document.addEventListener('keydown', e=>{
+    if(['ArrowRight','ArrowDown','PageDown',' '].includes(e.key)){ e.preventDefault(); show(cur+1); }
+    else if(['ArrowLeft','ArrowUp','PageUp'].includes(e.key)){ e.preventDefault(); show(cur-1); }
+    else if(e.key==='Home') show(0);
+    else if(e.key==='End') show(slides.length-1);
+  });
+  document.getElementById('stage-wrap').addEventListener('click', e=>{
+    const x = e.clientX / window.innerWidth;
+    show(x < 0.25 ? cur-1 : cur+1);
+  });
+
+  /* 1280x720 무대를 화면에 맞게 스케일 */
+  function fit(){
+    const s = Math.min(window.innerWidth/1280, window.innerHeight/720);
+    document.getElementById('stage').style.transform = 'scale('+s+')';
+  }
+  window.addEventListener('resize', fit);
+  fit();
+
+  const h = parseInt(location.hash.slice(1));
+  show(isNaN(h) ? 0 : h-1);
+</script>
+</body>
+</html>
