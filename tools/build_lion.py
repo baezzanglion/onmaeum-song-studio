@@ -24,18 +24,66 @@ def must(a, b, n=1, label=""):
     assert cnt == n, f"[{label}] expected {n} got {cnt}\n---\n{a[:120]}"
     g = g.replace(a, b, n)
 
-# ---- FORTUNE 엔진 (기존 승인본에서 그대로) ----
-FORTUNE = r'''const ONE_LINERS = [
-  "맑은 날이 너무 또랑또랑해서 살짝 부담스럽기도 하네요","목요일은 늘 금요일을 살짝 시기하죠","흐린 하늘은 결정장애가 좀 있는 것 같아요","안개는 봄을 좀 더 부르고 싶어하는 모양이에요",
-  "출근길 졸음과 커피가 줄다리기하는 아침","안개 낀 아침은 세상이 슬쩍 흐림 모드를 켠 느낌","흐린 하늘 아래선 모두가 조금씩 느려져요","빗소리만으로도 BGM이 되는 아침이네요",
-  "어제도 오늘도, 무사히 시작되는 아침","평범하게 출근한다는 것의 든든함","흐려도 꽃은 피는 계절의 한복판","작은 빛 하나가 반가운 아침이에요",
-  "마음이 한 박자 늦는 날도 있죠","쌀쌀함은 시간이 흐르면 풀려요. 마음도 그렇겠지요","답답한 안개도 곧 걷힐 거예요","따뜻한 한 모금이면 충분한 아침이에요",
-  "흐린 아침은 어쩐지 마음도 늘어지죠","천천히 출발해도 되는 아침이네요","출근길의 그 묘한 적막함, 이해합니다","오늘은 조금 느긋해도 괜찮아요",
-  "오늘은 한 걸음만 천천히 가도 충분해요","잘 시작된 아침이면 그것으로 충분해요","묵묵히 가는 사람의 등을 응원하는 마음","무사히 책상 앞에 앉은 모두에게 작은 박수",
-  "거리를 살짝 흐려놓은 안개의 아침","사람들의 걸음이 조금 무거워 보이는 날","흐린 하늘 아래에서도 시간은 잘 흐르네요","가로수가 계절의 초록을 머금은 아침",
-  "차분한 아침, 조용히 열리는 하루","흐림은 어쩌면 비를 안고 있는 마음","쌀쌀한 아침, 따뜻한 커피 한 잔의 시간","오늘 아침엔 계절의 잔향이 흐르네요",
-  "오늘은 어떤 하루가 될지 궁금해지네요","이 아침이 어디서 왔는지 모를 일이에요","오늘 하루엔 무엇이 남을지 두고 보기로 해요","슬쩍 궁금해지는 아침이네요"
-];
+# ---- FORTUNE 엔진 (원본 굿모닝라이언 문구를 날씨별 풀로 분리 + 실시간 날씨 연동) ----
+FORTUNE = r'''/* 응원 문구를 날씨별 풀로 분리 — 실제 날씨에 맞는 문구만 나오게 */
+const ONE_POOLS = {
+  clear: [
+    "맑은 날이 너무 또랑또랑해서 살짝 부담스럽기도 하네요","햇살이 먼저 출근해 있는 아침이네요",
+  ],
+  cloudy: [
+    "흐린 하늘은 결정장애가 좀 있는 것 같아요","흐린 하늘 아래선 모두가 조금씩 느려져요","흐려도 꽃은 피는 계절의 한복판",
+    "흐린 아침은 어쩐지 마음도 늘어지죠","흐린 하늘 아래에서도 시간은 잘 흐르네요","흐림은 어쩌면 비를 안고 있는 마음",
+  ],
+  fog: [
+    "안개 낀 아침은 세상이 슬쩍 흐림 모드를 켠 느낌","답답한 안개도 곧 걷힐 거예요","거리를 살짝 흐려놓은 안개의 아침",
+  ],
+  rain: [
+    "빗소리만으로도 BGM이 되는 아침이네요","우산 챙겨 나온 것만으로 오늘 준비성 만점이에요","비 오는 날의 사무실은 어쩐지 아늑하죠",
+  ],
+  hot: [
+    "이 더위를 뚫고 도착한 것만으로 오늘 절반은 성공이에요","에어컨 바람이 세상에서 제일 반가운 아침이네요",
+    "아이스 아메리카노가 생명수가 되는 계절이죠","해가 아침부터 의욕이 넘치네요, 우리는 천천히 가요","그늘만 골라 걸어도 칭찬받아 마땅한 날씨예요",
+  ],
+  cold: [
+    "쌀쌀함은 시간이 흐르면 풀려요. 마음도 그렇겠지요","따뜻한 한 모금이면 충분한 아침이에요","쌀쌀한 아침, 따뜻한 커피 한 잔의 시간",
+  ],
+  neutral: [
+    "출근길 졸음과 커피가 줄다리기하는 아침","어제도 오늘도, 무사히 시작되는 아침","평범하게 출근한다는 것의 든든함",
+    "작은 빛 하나가 반가운 아침이에요","마음이 한 박자 늦는 날도 있죠","천천히 출발해도 되는 아침이네요",
+    "출근길의 그 묘한 적막함, 이해합니다","오늘은 조금 느긋해도 괜찮아요","오늘은 한 걸음만 천천히 가도 충분해요",
+    "잘 시작된 아침이면 그것으로 충분해요","묵묵히 가는 사람의 등을 응원하는 마음","무사히 책상 앞에 앉은 모두에게 작은 박수",
+    "사람들의 걸음이 조금 무거워 보이는 날","가로수가 계절의 초록을 머금은 아침","차분한 아침, 조용히 열리는 하루",
+    "오늘 아침엔 계절의 잔향이 흐르네요","오늘은 어떤 하루가 될지 궁금해지네요","이 아침이 어디서 왔는지 모를 일이에요",
+    "오늘 하루엔 무엇이 남을지 두고 보기로 해요","슬쩍 궁금해지는 아침이네요",
+  ],
+};
+
+/* 서울 현재 날씨 (Open-Meteo · 무료·키 불필요) — 실패해도 날씨 무관 문구로 정상 동작 */
+let wx = null; // {temp, code}
+async function fetchWeather(){
+  try{
+    const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=37.5665&longitude=126.978&current=temperature_2m,weather_code&timezone=Asia%2FSeoul');
+    const j = await r.json();
+    wx = { temp: +j.current.temperature_2m, code: +j.current.weather_code };
+  }catch(e){ wx = null; }
+}
+fetchWeather();
+setInterval(fetchWeather, 30*60*1000);   // 로비 상시 거치 → 30분마다 갱신
+
+function wxPool(){
+  let pool = ONE_POOLS.neutral.slice();
+  if(wx){
+    const c = wx.code, t = wx.temp;
+    if((c>=51&&c<=67) || (c>=80&&c<=82) || c>=95) pool = pool.concat(ONE_POOLS.rain);
+    else if(c===45 || c===48) pool = pool.concat(ONE_POOLS.fog);
+    else if(c>=2 && c<=3) pool = pool.concat(ONE_POOLS.cloudy);
+    else if(c<=1) pool = pool.concat(ONE_POOLS.clear);
+    if(t>=28) pool = pool.concat(ONE_POOLS.hot, ONE_POOLS.hot);        // 더운 날엔 더위 문구 가중
+    else if(t<=8) pool = pool.concat(ONE_POOLS.cold, ONE_POOLS.cold);  // 추운 날 동일
+  }
+  if(new Date().getDay()===4) pool.push("목요일은 늘 금요일을 살짝 시기하죠");
+  return pool;
+}
 const LUCK_COMMENTS = {
   100: ["오늘은 커피가 저절로 생기는 날","무엇을 해도 잘 풀리는 잭팟","오늘의 주인공은 바로 당신","행운이 어깨에 딱 올라앉은 날"],
   90: ["오늘은 흐름이 정말 좋아요","산뜻한 일 하나쯤 생길 것 같은 날","괜히 기분 좋은 일이 있을 듯한 날","손에 잡히는 것마다 매끄러운 하루","의외의 좋은 소식이 도착할 수 있어요","일이 술술 풀려갈 가능성이 높은 날","작은 행운들이 곳곳에 숨어있는 하루","마음 가는 대로 가도 잘 풀릴 듯한 날","평소보다 일이 가볍게 느껴질 듯한 날","무엇을 해도 결이 잘 맞을 하루","운이 살짝 어깨에 앉은 듯한 날","일정이 자연스레 연결되는 하루","별일 없이 잘 굴러갈 듯한 평온","일도 마음도 가벼운 흐름의 하루"],
@@ -46,7 +94,7 @@ const LUCK_COMMENTS = {
 function rollLuck(fl=30){ const r=Math.max(Math.random(),Math.random()); return Math.floor(r*(101-fl))+fl; }
 function tierOf(s){ return [100,90,70,50,30].find(t=>s>=t); }
 function fpick(a){ return a[Math.floor(Math.random()*a.length)]; }
-function rollFortune(){ const s=rollLuck(30); return {score:s, oneLiner:fpick(ONE_LINERS), comment:fpick(LUCK_COMMENTS[tierOf(s)])}; }
+function rollFortune(){ const s=rollLuck(30); return {score:s, oneLiner:fpick(wxPool()), comment:fpick(LUCK_COMMENTS[tierOf(s)])}; }
 let fortune = rollFortune();'''
 
 # 1) VERSES 배열 + verseIdx 통째로 → FORTUNE 엔진
