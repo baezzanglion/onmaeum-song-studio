@@ -110,7 +110,7 @@ function rollLuck(fl=30){ const r=Math.max(Math.random(),Math.random()); return 
 function tierOf(s){ return [100,90,70,50,30].find(t=>s>=t); }
 function fpick(a){ return a[Math.floor(Math.random()*a.length)]; }
 /* 행운 사진관 = 매번이 '행운 요청' → 봇의 행운 모드(floor 70) 적용.
-   70~100, 평균 ~90, 90+ 확률 ~50%, 100점(본부장 커피 잭팟) ~3% */
+   70~100, 평균 ~90, 90+ 확률 ~59%, 100점(커피쿠폰 잭팟) ~6% */
 function rollFortune(){ const s=rollLuck(70); return {score:s, oneLiner:fpick(wxPool()), comment:fpick(LUCK_COMMENTS[tierOf(s)])}; }
 let fortune = rollFortune();'''
 
